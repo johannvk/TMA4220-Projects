@@ -52,9 +52,14 @@ class Poisson2DSolver():
             if type(nodes) is int:
                 triangle_indices = [i for i, triangle in enumerate(self.triang) if nodes in triangle] 
             else:
-                triangle_indices = []
-                for node in nodes:
-                    triangle_indices += [i for i, triangle in enumerate(self.triang) if node in triangle]
+                # Stupidly unreadable One-line solution:
+                triangle_indices = list(filter(lambda i: any((node in self.triang[i] for node in nodes)), 
+                                               np.arange(len(self.triang))))
+                
+                # Old solution:
+                # triangle_indices = []
+                # for node in nodes:
+                #     triangle_indices += [i for i, triangle in enumerate(self.triang) if node in triangle]
 
             element_triang = self.triang[triangle_indices]
 
@@ -66,5 +71,5 @@ class Poisson2DSolver():
 
 
 a = Poisson2DSolver(15, 0.0, 0.0, 0.0, 0.0)
-a.display_mesh(nodes=np.arange(start=5, stop=10))
+a.display_mesh(nodes=np.arange(start=0, stop=3))
 a.display_mesh()
