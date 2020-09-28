@@ -29,24 +29,35 @@ class Poisson2DSolver():
                 should be a Dirichlet BC. Assumed Neumann if not. 
         area: What geometry to solve the poisson equation on. Default: disc.
         """
+        # Geometry setup:
         if area == "disc":
             self.nodes, self.triang, self.edges = GetDisc(N)
-            self.edge_nodes = self.edges[:, 0]
         else:
             raise NotImplementedError("Ups, only support the 'disc' geometry.")
-        
+        self.edge_nodes = self.edges[:, 0]
+        self.num_unknowns = N - len(self.edge_nodes)
+
         self.f = f
         self.g_D = g_D
         self.g_N = g_N
         self.dir_BC = dir_BC
         self.area = area  # A bit superfluous. 
 
-    def display_mesh(self, node: int =None, elements=None):
-        if elements is None and node is None:
+    def display_mesh(self, nodes=None, elements=None):
+        if elements is None and nodes is None:
             element_triang = self.triang
-        elif node is not None:
-            triangle_indices = [i for i, triangle in enumerate(self.triang) if node in triangle] 
+
+        elif nodes is not None:
+            # Find all triangles with nodes-elements as vertices.
+            if type(nodes) is int:
+                triangle_indices = [i for i, triangle in enumerate(self.triang) if nodes in triangle] 
+            else:
+                triangle_indices = []
+                for node in nodes:
+                    triangle_indices += [i for i, triangle in enumerate(self.triang) if node in triangle]
+
             element_triang = self.triang[triangle_indices]
+
         else:
             element_triang = self.triang[elements]
 
@@ -54,6 +65,6 @@ class Poisson2DSolver():
         plt.show()
 
 
-
 a = Poisson2DSolver(15, 0.0, 0.0, 0.0, 0.0)
-a.display_mesh(node=1)
+a.display_mesh(nodes=np.arange(start=5, stop=10))
+a.display_mesh()
