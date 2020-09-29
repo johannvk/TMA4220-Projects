@@ -1,6 +1,8 @@
 import numpy as np
 import scipy.sparse as sp
 import matplotlib.pyplot as plt
+import matplotlib.tri as mtri
+
 
 # Mesh generation code from lecturers:
 from triangulation.getdisc import GetDisc
@@ -35,6 +37,7 @@ class Poisson2DSolver():
         else:
             raise NotImplementedError("Ups, only support the 'disc' geometry.")
         self.edge_nodes = self.edges[:, 0]
+        self.num_nodes = N
         self.num_unknowns = N - len(self.edge_nodes)
 
         self.f = f
@@ -124,18 +127,46 @@ class Poisson2DSolver():
         """
         Need a way of evluating the sum of basis functions in a smart way. 
         """
-        pass
+        assert(len(u_h) == self.num_nodes)
+        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+        fig.suptitle("Solution Plot")
+        # Kind of what we want: Values at nodes decided by u_h-array.
+        # Then the value descendes to zero on all nodes around it.
+        ax.plot_trisurf(self.nodes[:, 0], self.nodes[:, 1], u_h, triangles=self.triang, 
+                        cmap=plt.cm.viridis, antialiased=True)
+        ax.set_zlim(-1.2, 1.2)
+        plt.show()
+        
+
+def basic_tests():
+    # Filler arguments:
+    a = Poisson2DSolver(200, 0.0, 0.0, 0.0, 0.0)
+
+    # Test transforms:
+    element_i = 12
+    eta_test = [0.62, 0.135]
+    test_xy = a.reference_to_global_transformation(eta=eta_test, element=element_i)
+    eta_result = a.global_to_reference_transformation(p=test_xy, element=element_i)
+    # After applying the transform and its inverse for the same element, 
+    # "eta_test" should be the same as "eta_result"
+    assert(np.allclose(eta_test, eta_result))
+
+    # node_to_hit = a.nodes[a.triang[element_i][1]]
+    # a.display_mesh(nodes=4)
+    # a.display_mesh()
+
+    # Test surface plot:
+    # u_h = np.zeros(a.num_nodes)
+    # u_h[10] = 1.0
+    # u_h[11] = -1.0
+    u_h = np.arange(a.num_nodes)/(a.num_nodes)
+    a.display_solution(u_h)
 
 
+def main():
+    basic_tests()
+    pass
 
 
-a = Poisson2DSolver(15, 0.0, 0.0, 0.0, 0.0)
-element_i = 12
-eta_test = [0.62, 0.135]
-test_xy = a.reference_to_global_transformation(eta=eta_test, element=element_i)
-eta_result = a.global_to_reference_transformation(p=test_xy, element=element_i)
-
-node_to_hit = a.nodes[a.triang[element_i][1]]
-a.display_mesh(nodes=4)
-a.display_mesh()
-a.generate_jacobian
+if __name__ == "__main__":
+    main()
