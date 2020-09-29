@@ -69,7 +69,18 @@ class Poisson2DSolver():
         plt.triplot(self.nodes[:, 0], self.nodes[:, 1], triangles=element_triang)
         plt.show()
 
+    def reference_to_global_transformation(self, eta, element):
+        """
+        Function transforming local coordinates eta = [r, s] to 
+        global coordinates [x, y] for a given element.
+        eta: np.array([r, s])
+        element: int in range(Num_elements)
+        """
+        p1, p2, p3 = self.nodes[self.triang[element]]
+        J = np.column_stack([p2-p1, p3-p1])
+        return J @ np.array(eta) + p1
 
 a = Poisson2DSolver(15, 0.0, 0.0, 0.0, 0.0)
-a.display_mesh(nodes=np.arange(start=0, stop=3))
+test_xy = a.reference_to_global_transformation(eta=[0.2, 0.2], element=4)
+a.display_mesh(nodes=4)
 a.display_mesh()
