@@ -43,6 +43,9 @@ class Poisson2DSolver():
         self.dir_BC = dir_BC
         self.area = area  # A bit superfluous. 
 
+        # Linear Lagrange polynomial basis functions on the reference triangle:
+        self.basis_functions = [lambda eta: 1 - eta[0] - eta[1], lambda eta: eta[0], lambda eta: eta[1]]
+
     def display_mesh(self, nodes=None, elements=None):
         if elements is None and nodes is None:
             element_triang = self.triang
@@ -69,18 +72,60 @@ class Poisson2DSolver():
         plt.triplot(self.nodes[:, 0], self.nodes[:, 1], triangles=element_triang)
         plt.show()
 
-    def reference_to_global_transformation(self, eta, element):
+    def generate_jacobian(self, element: int):
         """
-        Function transforming local coordinates eta = [r, s] to 
-        global coordinates [x, y] for a given element.
-        eta: np.array([r, s])
-        element: int in range(Num_elements)
+        Function to generate the Jacobian J = ∂(x,y)/∂(r, s)\n
+        for transforming from the reference triangle to global coordinates.\n
+        element: The target element (triangle) of the transformation from the reference element.
         """
         p1, p2, p3 = self.nodes[self.triang[element]]
         J = np.column_stack([p2-p1, p3-p1])
-        return J @ np.array(eta) + p1
+        return J
+
+    def reference_to_global_transformation(self, eta, element, J=None):
+        """
+        Function transforming reference coordinates eta = [r, s] to 
+        global coordinates [x, y] for a given element.
+        eta: np.array([r, s])
+        element: int in range(Num_elements)
+        J: If the transformation is called repeatedly on the same element,\n
+           one can provide the already calculated Jacobian.
+           TODO: Do we want to return the calculated Jacobian as well? Think No.
+        """
+        translation = self.nodes[self.triang[element][0]]
+        if J is None:
+            J = self.generate_jacobian(element)
+        return J @ np.array(eta) + translation
+    
+    def global_to_reference_transformation(self, p, element, J_inv=None):
+        """
+        Function transforming global coordinates p = [x, y] to 
+        reference coordinates eta = [r, s] for a given element.
+        p: np.array([x, y])
+        element: int in range(Num_elements)
+        J_inv: If the transformation is called repeatedly on the same element,\n
+               one can provide the already calculated inverse Jacobian.
+               TODO: Do we want to return the calculated inverse-Jacobian as well? Think No.
+        """
+        translation = self.nodes[self.triang[element][0]]
+        if J_inv is None:
+            J_inv = np.linalg.inv(self.generate_jacobian(element))
+        return J_inv @ (p - translation)
+
+    def display_solution(self, u_h):
+        
+        pass
+
+
+
 
 a = Poisson2DSolver(15, 0.0, 0.0, 0.0, 0.0)
-test_xy = a.reference_to_global_transformation(eta=[0.2, 0.2], element=4)
+element_i = 12
+eta_test = [0.62, 0.135]
+test_xy = a.reference_to_global_transformation(eta=eta_test, element=element_i)
+eta_result = a.global_to_reference_transformation(p=test_xy, element=element_i)
+
+node_to_hit = a.nodes[a.triang[element_i][1]]
 a.display_mesh(nodes=4)
 a.display_mesh()
+a.generate_jacobian
