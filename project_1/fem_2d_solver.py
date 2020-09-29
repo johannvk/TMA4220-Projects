@@ -112,8 +112,18 @@ class Poisson2DSolver():
             J_inv = np.linalg.inv(self.generate_jacobian(element))
         return J_inv @ (p - translation)
 
+    def evaluate(self, p):
+        """
+        Some smart generator function returning sum of basis functions at the point [x, y],
+        located in some element K.
+        p: np.array([x, y])
+        """
+        pass
+
     def display_solution(self, u_h):
-        
+        """
+        Need a way of evluating the sum of basis functions in a smart way. 
+        """
         pass
 
 
