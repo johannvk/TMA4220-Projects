@@ -52,8 +52,8 @@ def triangle_area(p1, p2, p3):
     t3 = p3[0]*(p1[1] - p2[1])
     return 0.5*abs(t1 + t2 + t3)
 
-def area_coord_inv_transform(etas, p1, p2, p3):
-    return etas[0]*p1 + etas[1]*p2 + etas[2]*p3
+def area_coord_inv_transform(eta, p1, p2, p3):
+    return eta[0]*p1 + eta[1]*p2 + eta[2]*p3
 
 
 def quadrature2D(g, p1, p2, p3, Nq=3, *args):
@@ -64,10 +64,10 @@ def quadrature2D(g, p1, p2, p3, Nq=3, *args):
     # Only supported choice of quadrature points:
     # assert(Nq in (1, 3, 4))
 
-    integrand = lambda etas: g(area_coord_inv_transform(etas, p1, p2, p3), *args)
+    integrand = lambda eta: g(area_coord_inv_transform(eta, p1, p2, p3), *args)
     points, weights = gaussquad2d_points_weights[Nq]
 
-    I = sum(w*integrand(etas) for etas, w in zip(points, weights))
+    I = sum(w*integrand(eta) for eta, w in zip(points, weights))
     return triangle_area(p1, p2, p3)*I
 
 
