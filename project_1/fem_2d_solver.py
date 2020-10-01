@@ -14,6 +14,10 @@ from triangulation.getdisc import GetDisc
 # Our Gaussian-quadrature-code:
 from gaussian_quad import quadrature2D, triangle_area
 
+class BCtype:
+    Neu = 0
+    Dir = 1
+
 
 class Poisson2DSolver():
     """
@@ -22,7 +26,7 @@ class Poisson2DSolver():
     \nUsing Linear basis function Polynomials.    
     """
     
-    def __init__(self, N, f, g_D, g_N, dir_BC, quad_points=4, area="disc", eps=1.0e-14):
+    def __init__(self, N, f, g_D, g_N, class_BC, quad_points=4, area="disc", eps=1.0e-14):
         """
         Initializer for 2D-FEM solver of the Poisson equation:\n
         -∆u = f, (x, y) ∈ Ω \n
@@ -51,7 +55,7 @@ class Poisson2DSolver():
         self.f = f
         self.g_D = g_D
         self.g_N = g_N
-        self.dir_BC = dir_BC
+        self.class_BC = class_BC
         self.eps = eps  # Big-Number Epsilon.
 
         # Boolean indicating whether Boundary Conditions have been applied:
@@ -223,10 +227,15 @@ class Poisson2DSolver():
         eps_inv = 1.0/eps        
         for node in self.edge_nodes:
             p = self.nodes[node]
-            dir_BC = self.g_D(p)
+            class_BC = self.class_BC(p)
 
-            self.A_h[node, node] = eps_inv
-            self.F_h[node] = dir_BC*eps_inv
+            if class_BC == BCtype.Dir:
+                """
+                If node is a Dirichlet node
+                """
+                g_D = self.g_D(p)
+                self.A_h[node, node] = eps_inv
+                self.F_h[node] = g_D*eps_inv
         
         self.applied_BC = True
 
@@ -247,7 +256,7 @@ class Poisson2DSolver():
 
     def display_solution(self, u_h=None):
         """
-        Need a way of evluating the sum of basis functions in a smart way. 
+        Need a way of evaluating the sum of basis functions in a smart way. 
         """
         if u_h is None:
             u_h = self.u_h

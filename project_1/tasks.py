@@ -52,7 +52,13 @@ def test_FEM_solution(N=2000):
     def g_D(p):
         return 0.0
     
-    FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=None, dir_BC=None, eps=1.0e-14)
+    def class_BC(p):
+        """
+        Classify all edge nodes as Dirichlet
+        """
+        return 1
+    
+    FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=None, class_BC=class_BC, eps=1.0e-14)
     FEM_solver.solve_big_number_dirichlet()  # Might expand 'solve()' method to perform the above function calls.
     FEM_solver.display_solution()
 
