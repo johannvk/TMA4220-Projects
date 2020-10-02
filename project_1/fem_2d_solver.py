@@ -35,8 +35,8 @@ class Poisson2DSolver():
         f: Source function.
         g_D: Function g([x, y]) -> R, specifying Dirichlet boundary conditions.
         g_N: Function g([x, y]) -> R, specifying Neumann boundary conditions.
-        Dir_BC: Function BC_type([x, y]) -> Bool, returning True if point [x, y] \n
-                should be a Dirichlet BC. Assumed Neumann if not. 
+        class_BC: Function BC_type([x, y]) -> Bool, returning True if point [x, y] \n
+                  should be a Dirichlet BC. Assumed Neumann if not. 
         area: What geometry to solve the poisson equation on. Default: disc.
         """
         # Geometry setup:
@@ -57,6 +57,11 @@ class Poisson2DSolver():
         self.g_N = g_N
         self.class_BC = class_BC
         self.eps = eps  # Big-Number Epsilon.
+
+        # Store which nodes are BCtype.Dir and their values:
+        self.dirichlet_BC_mask = np.zeros(self.num_nodes, dtype=bool)
+        self.dirichlet_BC_nodes = []
+        self.dirichlet_BC_values = []
 
         # Boolean indicating whether Boundary Conditions have been applied:
         self.applied_BC = False
@@ -179,17 +184,16 @@ class Poisson2DSolver():
                 A_i_i = self.A_i_j(i, i, J_inv, element_area)
                 self.A_h[node_i, node_i] += A_i_i
 
-                # print(f"At nodes (i, j): ({node_i}, {node_i})")
-
                 for j in range(i+1, 3):
                     node_j = element[j]
                     A_i_j = self.A_i_j(i, j, J_inv, element_area)
 
                     self.A_h[node_i, node_j] += A_i_j
                     self.A_h[node_j, node_i] += A_i_j
-
-                    # print(f"At nodes (i, j): ({node_i}, {node_j})")
-
+        
+        # Convert A_h to csr-format for ease of calculations later:
+        self.A_h = self.A_h.tocsr() 
+        
     def generate_F_h(self):
         """
         Generate the source vector. Sum over elements and add contributions from each basis function.
@@ -212,6 +216,9 @@ class Poisson2DSolver():
 
                 # Add contribution from element to node-row. Integrate overe reference triangle.
                 self.F_h[node] += det_J_k*quadrature2D(integrand, eta1, eta2, eta3, self.quad_points)
+        
+        # Reshape F_h to a column vector:
+        self.F_h = self.F_h.reshape(self.num_nodes, 1)
 
     def apply_big_number_dirichlet(self, eps=None):
         """
@@ -239,12 +246,47 @@ class Poisson2DSolver():
         
         self.applied_BC = True
 
+
+    def apply_direct_dirichlet(self):
+        # Dirichlet Boundary 
+        for node in self.edge_nodes:
+            p = self.nodes[node]
+
+            if self.class_BC(p) == BCtype.Dir:
+                dir_bc_value = self.g_D(p)
+                
+                self.dirichlet_BC_mask[node] = True
+                self.dirichlet_BC_nodes.append(node)
+                self.dirichlet_BC_values.append(dir_bc_value)
+
+                # Subtract from the source vector the column corresponding to 'node', 
+                # times its Dirichlet BC-value: 
+                self.F_h -= self.A_h[:, node]*dir_bc_value
+        
+        # Remove redundant degrees of freedom from A_h and F_h:
+        F_mask = np.ones(len(self.F_h), dtype=bool)
+        F_mask[self.dirichlet_BC_nodes] = False
+        self.F_h = self.F_h[F_mask]
+
+        self.A_h = delete_from_csr(self.A_h, row_indices=self.dirichlet_BC_nodes, 
+                                             col_indices=self.dirichlet_BC_nodes)
+        self.applied_BC = True
+
     def solve_big_number_dirichlet(self):
         self.generate_A_h()
         self.generate_F_h()
         self.apply_big_number_dirichlet()
-        self.A_h.tocsr()
         self.u_h = sp.linalg.spsolve(self.A_h, self.F_h)
+
+    def solve_direct_dirichlet(self):
+        self.generate_A_h()
+        self.generate_F_h()
+        self.apply_direct_dirichlet()
+        
+        reduced_u_h = sp.linalg.spsolve(self.A_h, self.F_h)
+        self.u_h = np.zeros(self.num_nodes)
+        self.u_h[~self.dirichlet_BC_mask] = reduced_u_h
+        self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
 
     def evaluate(self, p):
         """
@@ -280,3 +322,48 @@ def matprint(mat, fmt="g"):
         for i, y in enumerate(x):
             print(("{:"+str(col_maxes[i])+fmt+"}").format(y), end="  ")
         print("")
+
+
+def delete_from_csr(mat, row_indices=[], col_indices=[]):
+    """
+    Remove the rows (denoted by ``row_indices``) and columns (denoted by ``col_indices``) from the CSR sparse matrix ``mat``.
+    WARNING: Indices of altered axes are reset in the returned matrix
+    """
+    if not isinstance(mat, sp.csr_matrix):
+        raise ValueError("works only for CSR format -- use .tocsr() first")
+
+    rows = []
+    cols = []
+    if row_indices:
+        rows = list(row_indices)
+    if col_indices:
+        cols = list(col_indices)
+
+    if len(rows) > 0 and len(cols) > 0:
+        row_mask = np.ones(mat.shape[0], dtype=bool)
+        row_mask[rows] = False
+        col_mask = np.ones(mat.shape[1], dtype=bool)
+        col_mask[cols] = False
+        return mat[row_mask][:,col_mask]
+    elif len(rows) > 0:
+        mask = np.ones(mat.shape[0], dtype=bool)
+        mask[rows] = False
+        return mat[mask]
+    elif len(cols) > 0:
+        mask = np.ones(mat.shape[1], dtype=bool)
+        mask[cols] = False
+        return mat[:,mask]
+    else:
+        return mat
+
+"""
+a = sp.dok_matrix((5, 5))
+for i in range(5):
+    for j in range(5):
+        a[i,j] = i*5 + j
+
+matprint(a.toarray())
+
+a_del = delete_from_csr(a.tocsr(), [0, 2], [2, 4])
+matprint(a_del.toarray())
+"""
