@@ -183,7 +183,7 @@ class Poisson2DSolver():
             for i, node_i in enumerate(element):
                 A_i_i = self.A_i_j(i, i, J_inv, element_area)
                 self.A_h[node_i, node_i] += A_i_i
-
+                
                 for j in range(i+1, 3):
                     node_j = element[j]
                     A_i_j = self.A_i_j(i, j, J_inv, element_area)
@@ -311,8 +311,11 @@ class Poisson2DSolver():
         # Kind of what we want: Values at nodes decided by u_h-array.
         # Then the value descendes to zero on all nodes around it.
         ax.plot_trisurf(self.nodes[:, 0], self.nodes[:, 1], u_h, triangles=self.triang, 
-                        cmap=plt.cm.viridis, antialiased=True)
+                        cmap=plt.cm.jet, antialiased=True)
         ax.set_zlim(-1.2, 1.2)
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_zlabel("z")
         plt.show()
             
 
