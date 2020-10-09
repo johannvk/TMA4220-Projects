@@ -319,6 +319,17 @@ class Poisson2DSolver():
         self.u_h[~self.dirichlet_BC_mask] = reduced_u_h
         self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
 
+    def solve_direct_dirichlet_CG(self, TOL=1e-5):
+        self.generate_A_h()
+        self.generate_F_h()
+        self.apply_direct_dirichlet()
+        
+        reduced_u_h, exit_code = sp.linalg.cg(self.A_h, self.F_h, tol=TOL)
+        assert exit_code == 0 
+        self.u_h = np.zeros(self.num_nodes)
+        self.u_h[~self.dirichlet_BC_mask] = reduced_u_h
+        self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
+
     def evaluate(self, p):
         """
         Some smart generator function returning sum of basis functions at the point [x, y],

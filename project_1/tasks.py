@@ -8,7 +8,7 @@ import matplotlib.tri as mtri
 from mpl_toolkits.mplot3d import Axes3D
 
 # Our code:
-from fem_2d_solver import Poisson2DSolver, matprint
+from fem_2d_solver import Poisson2DSolver, matprint, BCtype
 from gaussian_quad import quadrature2D
 
 
@@ -330,16 +330,57 @@ def integrate_source_func_over_triangle(f, k, i_loc, FEM_solver):
     I = quadrature2D(integrand, p1, p2, p3)
     return I
 
+def test_CG_FEM_solution(N=1000, TOL=1e-5):
+
+    def f(p):
+        """
+        Source function f(r, theta) = −8π*cos(2πr²)+ 16π²r²sin(2πr²)
+        p: np.array([x, y])
+        """
+        r_squared = p[0]**2 + p[1]**2
+        term_1 = -8.0*np.pi*np.cos(2*np.pi*r_squared)
+        term_2 = 16*np.pi**2*r_squared*np.sin(2*np.pi*r_squared)
+        return term_1 + term_2
+    
+    def g_D(p):
+        return 0.0
+    
+    def class_BC(p):
+        """
+        Classify all edge nodes as Dirichlet
+        """
+        return BCtype.Dir
+
+    FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=None, class_BC=class_BC, eps=1.0e-14)
+    from time import time
+    start = time()
+    FEM_solver.solve_direct_dirichlet_CG(TOL=TOL)  # Might expand 'solve()' method to perform the above function calls.
+    end = time()
+    min_uh = min(FEM_solver.u_h)
+    max_uh = max(FEM_solver.u_h)
+
+    print("Showing Direct Dirichlet CG solution:")
+
+    print(f"Minimum value: {min_uh:.5e}\nMax value: {max_uh:.5e}")
+
+    print(f"CG solver: {(end-start):.2f} s")
+
+    # FEM_solver.display_mesh()
+    FEM_solver.display_solution()
+
+
+
 
 if __name__ == "__main__":
     # task_2_e()
     # test_direct_FEM_solution(N=5000)
     # test_big_number_FEM_solution(N=200)
     # test_big_number_FEM_solution()
-    compare_analytical_numerical(N=2000)
+    #compare_analytical_numerical(N=2000)
     # display_analytical_solution(N=1000)
-    # test_direct_FEM_solution(N=1000)
+    test_direct_FEM_solution(N=2000)
     # test_simpler_solution(N=1000)
+    test_CG_FEM_solution(N=2000, TOL=1e-5)
     
     # small_polynomial_solution()
     # big_polynomial_solution()
