@@ -165,6 +165,30 @@ class Poisson2DSolver():
 
         return elem_area * np.inner(grad_i, grad_j)
 
+    def A_i_j_test(self, i, j, G, elem_area):
+
+        grad_i = self.reference_gradients[i]
+        grad_j = self.reference_gradients[j]
+
+        return elem_area * grad_i @ G @ grad_j
+
+    def construct_J_inv_T_J_inv(self, element, J=None):
+        if J is None:
+            J = self.generate_jacobian(element)
+        det_J = la.det(J)
+
+        # Sum of elements in second row of Jacobian squared:
+        g_1_1 = J[0, 1]**2 + J[1, 1]**2
+
+        # Negative Sum of product of rows of jacobian:
+        g_1_2 = -(J[0, 0]*J[0, 1] + J[1, 0]*J[1, 1])
+
+        # Sum of elements in first row of Jacobian squared:
+        g_2_2 = J[0, 0]**2 + J[0, 1]**2
+
+        G = (1/det_J**2)*np.array([[g_1_1, g_1_2], [g_1_2, g_2_2]])
+        return G
+
     def generate_A_h(self):
         """
         Generate the Stiffness Matrix A_h, based on linear Langrange basis functions on triangles.
@@ -178,15 +202,21 @@ class Poisson2DSolver():
             J_inv = la.inv(J)
             element_area = 0.5*la.det(J)
 
+            # Jacobian information:
+            G = self.construct_J_inv_T_J_inv(k, J)
+
             # Loop through nodes. Exploit symmetry of the (A_h)_sub-matrix symmetry.
             # Only compute the upper-triangular part i <= j. Symmetric around i=j.
             for i, node_i in enumerate(element):
-                A_i_i = self.A_i_j(i, i, J_inv, element_area)
+                # A_i_i = self.A_i_j(i, i, J_inv, element_area)
+                A_i_i = self.A_i_j_test(i, i, G, element_area)
+
                 self.A_h[node_i, node_i] += A_i_i
                 
                 for j in range(i+1, 3):
                     node_j = element[j]
-                    A_i_j = self.A_i_j(i, j, J_inv, element_area)
+                    # A_i_j = self.A_i_j(i, j, J_inv, element_area)
+                    A_i_j = self.A_i_j_test(i, j, G, element_area)
 
                     self.A_h[node_i, node_j] += A_i_j
                     self.A_h[node_j, node_i] += A_i_j
@@ -312,7 +342,11 @@ class Poisson2DSolver():
         # Then the value descendes to zero on all nodes around it.
         ax.plot_trisurf(self.nodes[:, 0], self.nodes[:, 1], u_h, triangles=self.triang, 
                         cmap=plt.cm.jet, antialiased=True)
-        ax.set_zlim(-1.2, 1.2)
+
+        min_u_h, max_u_h = np.min(u_h), np.max(u_h)
+        scale = abs(max_u_h - min_u_h)
+
+        ax.set_zlim(min_u_h - 0.1*scale, max_u_h + 0.1*scale)
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("z")

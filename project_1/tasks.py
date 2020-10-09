@@ -205,7 +205,7 @@ def big_polynomial_solution(N=1000):
 
     FEM_poly.solve_direct_dirichlet()
 
-    display_analytical_solution(N=N, u=u)
+    # display_analytical_solution(N=N, u=u)
 
     FEM_poly.display_solution()
 
@@ -218,7 +218,7 @@ def small_polynomial_solution():
         return 4.0
     
     def u(p):
-        return 1.0 - (p[0]**2 + p[1]**2)
+        return 10.0 - (p[0]**2 + p[1]**2)
 
     def class_BC(p):
         """
@@ -227,6 +227,11 @@ def small_polynomial_solution():
         return 1
     
     FEM_poly = Poisson2DSolver(N=N, f=f, g_D=u, g_N=None, class_BC=class_BC)
+
+    # Løser verdien i ett punkt:
+    FEM_poly.solve_direct_dirichlet()
+    FEM_poly.display_solution()
+
     # Prøvde å endre lokal-indekseringen av noder i et element:
     # FEM_poly.triang[1] = np.array([0, 3, 2], dtype='int32')
     # Gav rare utslag, som at A[2, 2] = 9.99e-16
@@ -234,7 +239,14 @@ def small_polynomial_solution():
     FEM_poly.generate_A_h()
     print("A_h:")
     matprint(FEM_poly.A_h.toarray())
-    
+
+    # Insert very specific source vec:
+    # FEM_poly.F_h = np.array([FEM_poly.A_h[0, 0], 0.0, 0.0, 0.0]).reshape(4, 1)
+    # FEM_poly.apply_direct_dirichlet()
+    # FEM_poly.u_h = np.array([u(p) for p in FEM_poly.nodes])
+    # FEM_poly.u_h[0] = sp.linalg.spsolve(FEM_poly.A_h, FEM_poly.F_h)
+    # FEM_poly.display_solution()
+
     FEM_poly.generate_F_h()
     print(f"\nF_h:")
     print(FEM_poly.F_h)
@@ -315,6 +327,7 @@ def integrate_source_func_over_triangle(f, k, i_loc, FEM_solver):
 
     I = quadrature2D(integrand, p1, p2, p3)
     return I
+
 
 if __name__ == "__main__":
     # task_2_e()
