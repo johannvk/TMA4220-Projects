@@ -120,6 +120,7 @@ def compare_analytical_numerical(N=20):
         """
         return 1
 
+    print("Display numerical solution:")
     FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=None, class_BC=class_BC)
 
     FEM_solver.display_mesh()
@@ -135,7 +136,8 @@ def compare_analytical_numerical(N=20):
         """
         r_squared = p[0]**2 + p[1]**2
         return np.sin(2*np.pi*r_squared)
-
+    
+    print("Display analytical solution:")
     exact_solver = Poisson2DSolver(N, 0.0, 0.0, 0.0, 0.0)
     u_exact = np.array([u(p) for p in exact_solver.nodes])
     exact_solver.display_solution(u_exact)
@@ -218,7 +220,7 @@ def small_polynomial_solution():
         return 4.0
     
     def u(p):
-        return 10.0 - (p[0]**2 + p[1]**2)
+        return 1.0 - (p[0]**2 + p[1]**2)
 
     def class_BC(p):
         """
@@ -334,11 +336,11 @@ if __name__ == "__main__":
     # test_direct_FEM_solution(N=5000)
     # test_big_number_FEM_solution(N=200)
     # test_big_number_FEM_solution()
-    # compare_analytical_numerical()
+    compare_analytical_numerical(N=2000)
     # display_analytical_solution(N=1000)
     # test_direct_FEM_solution(N=1000)
     # test_simpler_solution(N=1000)
     
     # small_polynomial_solution()
-    big_polynomial_solution()
+    # big_polynomial_solution()
     pass

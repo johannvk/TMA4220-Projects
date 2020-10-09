@@ -199,7 +199,8 @@ class Poisson2DSolver():
         for k, element in enumerate(self.triang):
             
             J = self.generate_jacobian(k)
-            J_inv = la.inv(J)
+            # KRITISK FUCKINGS T!
+            J_inv = la.inv(J).T
             element_area = 0.5*la.det(J)
 
             # Jacobian information:
@@ -208,15 +209,15 @@ class Poisson2DSolver():
             # Loop through nodes. Exploit symmetry of the (A_h)_sub-matrix symmetry.
             # Only compute the upper-triangular part i <= j. Symmetric around i=j.
             for i, node_i in enumerate(element):
-                # A_i_i = self.A_i_j(i, i, J_inv, element_area)
-                A_i_i = self.A_i_j_test(i, i, G, element_area)
+                A_i_i = self.A_i_j(i, i, J_inv, element_area)
+                # A_i_i = self.A_i_j_test(i, i, G, element_area)
 
                 self.A_h[node_i, node_i] += A_i_i
                 
                 for j in range(i+1, 3):
                     node_j = element[j]
-                    # A_i_j = self.A_i_j(i, j, J_inv, element_area)
-                    A_i_j = self.A_i_j_test(i, j, G, element_area)
+                    A_i_j = self.A_i_j(i, j, J_inv, element_area)
+                    # A_i_j = self.A_i_j_test(i, j, G, element_area)
 
                     self.A_h[node_i, node_j] += A_i_j
                     self.A_h[node_j, node_i] += A_i_j
