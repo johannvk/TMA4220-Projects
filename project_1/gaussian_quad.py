@@ -3,7 +3,7 @@ import scipy.linalg as la
 import scipy.integrate as sciint
 
 gaussquad1d_points_weights = {
-        1: ((0.0), (2.0)),
+        1: (np.array([0.0]), np.array([2.0])),
         2: ((-np.sqrt(1.0/3.0), np.sqrt(1.0/3.0)), 
             (1.0, 1.0)),
         3: ((-np.sqrt(3/5), 0.0, np.sqrt(3/5)), 
@@ -119,7 +119,7 @@ def test_quadrature2D(show_weights_points=False):
     polynomial_triangle_test()
 
 
-def test_quadrature1D(show_weights_points=False):
+def test_quadrature1D(show_weights_points=False, Nq=4):
     # Testing functionality of 1D-Gaussian Quadrature:
 
     if show_weights_points: # Display Gaussian points and weights.
@@ -128,8 +128,7 @@ def test_quadrature1D(show_weights_points=False):
 
     func = lambda x: np.exp(x)
     a, b = 1.0, 2.0
-    N_q = 4
-    I_quad = quadrature1D(func, a, b, N_q)
+    I_quad = quadrature1D(func, a, b, Nq)
 
     I_exact = np.exp(b) - np.exp(a)
 
@@ -149,7 +148,7 @@ def test_vector1DGauss():
 
 
 if __name__ == "__main__":
-    # test_quadrature1D()
+    test_quadrature1D(show_weights_points=False, Nq=1)
     # test_quadrature2D()
-    test_vector1DGauss()
+    # test_vector1DGauss()
  
