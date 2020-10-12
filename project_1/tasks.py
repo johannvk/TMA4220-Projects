@@ -156,10 +156,10 @@ def compare_analytical_numerical(N=20):
     print("Display numerical solution:")
     FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=None, class_BC=class_BC)
 
-    FEM_solver.display_mesh()
+    # FEM_solver.display_mesh()
 
     FEM_solver.solve_direct_dirichlet()
-    FEM_solver.display_solution()
+    # FEM_solver.display_solution()
 
     def u(p):
         """
@@ -173,7 +173,10 @@ def compare_analytical_numerical(N=20):
     print("Display analytical solution:")
     exact_solver = Poisson2DSolver(N, 0.0, 0.0, 0.0, 0.0)
     u_exact = np.array([u(p) for p in exact_solver.nodes])
-    exact_solver.display_solution(u_exact)
+    
+    error_coeffs = u_exact - FEM_solver.u_h
+    exact_solver.display_solution(error_coeffs)
+
 
 
 def test_simpler_solution(N=1000):
@@ -408,7 +411,7 @@ def test_CG_FEM_solution(N=1000, TOL=1e-5):
 if __name__ == "__main__":
     # task_2_e(5000)
     # test_direct_FEM_solution(N=5000)
-    test_big_number_FEM_solution(N=1000)
+    # test_big_number_FEM_solution(N=1000)
     # test_big_number_FEM_solution()
     # compare_analytical_numerical(N=2000)
     # display_analytical_solution(N=1000)
