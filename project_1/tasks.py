@@ -60,7 +60,7 @@ def test_big_number_FEM_solution(N=2000):
         """
         return 1
     
-    FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=None, class_BC=class_BC, eps=1.0e-14)
+    FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=None, class_BC=class_BC, eps=1.0e-2)
     FEM_solver.solve_big_number_dirichlet()
     print("Showing Big Number Dirichlet solution:")
     FEM_solver.display_solution()
@@ -98,6 +98,38 @@ def test_direct_FEM_solution(N=1000):
 
     # FEM_solver.display_mesh()
     FEM_solver.display_solution()
+
+
+def task_3(N=1000):
+
+    def f(p):
+        """
+        Source function f(r, theta) = −8π*cos(2πr²)+ 16π²r²sin(2πr²)
+        p: np.array([x, y])
+        """
+        r_squared = p[0]**2 + p[1]**2
+        term_1 = -8.0*np.pi*np.cos(2*np.pi*r_squared)
+        term_2 = 16*np.pi**2*r_squared*np.sin(2*np.pi*r_squared)
+        return term_1 + term_2
+    
+    def g_D(p):
+        return 0.0
+    
+    def g_N(p):
+        r = np.sqrt(p[0]**2 + p[1]**2)
+        return 4*np.pi*r*np.cos(2*np.pi*r**2)
+
+    def class_BC(p):
+        if p[1] <= 0.0:
+            return BCtype.Dir
+        else:
+            return BCtype.Neu
+    
+    FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=g_N, class_BC=class_BC)
+    # FEM_solver.display_mesh()
+    FEM_solver.solve_direct_dirichlet()
+    FEM_solver.display_solution()
+
 
 
 def compare_analytical_numerical(N=20):
@@ -230,6 +262,7 @@ def small_polynomial_solution(N=4):
         return 1
     
     FEM_poly = Poisson2DSolver(N=N, f=f, g_D=u, g_N=None, class_BC=class_BC)
+    FEM_poly.display_mesh(nodes=None, elements=FEM_poly.edge_triangle_indexes)
 
     # Løser verdien i ett punkt:
     FEM_poly.solve_direct_dirichlet()
@@ -429,9 +462,9 @@ def test_error(N=200):
 if __name__ == "__main__":
     # task_2_e(5000)
     # test_direct_FEM_solution(N=5000)
-    # test_big_number_FEM_solution(N=200)
+    test_big_number_FEM_solution(N=1000)
     # test_big_number_FEM_solution()
-    #compare_analytical_numerical(N=2000)
+    # compare_analytical_numerical(N=2000)
     # display_analytical_solution(N=1000)
     # test_direct_FEM_solution(N=2000)
     # test_simpler_solution(N=1000)
@@ -440,5 +473,5 @@ if __name__ == "__main__":
     # small_polynomial_solution(N=14)
     # big_polynomial_solution()
     test_error(N=200)
-
+    # task_3(N=1000)
     pass
