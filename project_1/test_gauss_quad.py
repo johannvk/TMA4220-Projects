@@ -3,7 +3,7 @@ import scipy.integrate as sciint
 
 from fem_2d_solver import Poisson2DSolver
 
-from gaussian_quad import quadrature2D
+from gaussian_quad import quadrature1D, quadrature2D
 
 def generate_triangle_jacobian(self, p1, p2, p3):
     """

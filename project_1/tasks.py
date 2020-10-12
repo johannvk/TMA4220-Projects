@@ -12,14 +12,15 @@ from fem_2d_solver import Poisson2DSolver, matprint
 from gaussian_quad import quadrature2D
 
 
-def task_2_e(N=200):
+def task_2_e(N=100):
     # Function conforming that the full Stiffness Matrix is singular.
     FEM_dummy_solver = Poisson2DSolver(N, True, True, True, True)
     FEM_dummy_solver.generate_A_h()
     A_h = FEM_dummy_solver.A_h.toarray()
     eigvals = la.eigvals(A_h)
-    if any(np.abs(eigvals) < 1.0e-15):
-        print("The matrix A_h, constructed without imposing any boundary conditions, is Singular.")
+    if any(np.abs(eigvals) < 1.0e-14):
+        print("\nTask 2 e):\n\tThe matrix A_h, constructed without imposing any boundary conditions, is Singular.")
+
 
 
 def display_analytical_solution(N=1000, u=None):
@@ -212,9 +213,9 @@ def big_polynomial_solution(N=1000):
     FEM_poly.display_solution()
 
 
-def small_polynomial_solution():
+def small_polynomial_solution(N=4):
     print("\nTESTING POLYNOMIAL EASY SOLUTION, N=4 nodes!")
-    N = 4
+    # N = 4
     
     def f(p):
         return 4.0
@@ -332,15 +333,15 @@ def integrate_source_func_over_triangle(f, k, i_loc, FEM_solver):
 
 
 if __name__ == "__main__":
-    # task_2_e()
+    # task_2_e(5000)
     # test_direct_FEM_solution(N=5000)
     # test_big_number_FEM_solution(N=200)
     # test_big_number_FEM_solution()
-    compare_analytical_numerical(N=2000)
+    # compare_analytical_numerical(N=2000)
     # display_analytical_solution(N=1000)
     # test_direct_FEM_solution(N=1000)
     # test_simpler_solution(N=1000)
     
-    # small_polynomial_solution()
+    small_polynomial_solution(N=14)
     # big_polynomial_solution()
     pass

@@ -46,6 +46,11 @@ class Poisson2DSolver():
             raise NotImplementedError("Ups, only support the 'disc' geometry.")
         
         self.edge_nodes = self.edges[:, 0]
+        self.edge_triangles = self.triang[list(
+                                          filter(lambda i: any((node in self.triang[i] for node in self.edge_nodes)), 
+                                                 np.arange(len(self.triang)))
+                                          )]
+
         self.num_nodes = N
         self.num_unknowns = N - len(self.edge_nodes)
         self.quad_points = quad_points
@@ -150,7 +155,7 @@ class Poisson2DSolver():
             J_inv = la.inv(self.generate_jacobian(element))
         return J_inv @ (p - translation)
 
-    def A_i_j(self, i, j, J_inv, elem_area):
+    def A_i_j(self, i, j, J_inv_T, elem_area):
         """
         Function calculating the (Aₕ)ᵢ,ⱼ-th element of the "Stiffness"-matrix.
         i: Local index of basis function. [0, 1, 2]
@@ -160,8 +165,8 @@ class Poisson2DSolver():
         elem_area: Area of the element: |J|/2
         """
         
-        grad_i = J_inv @ self.reference_gradients[i]
-        grad_j = J_inv @ self.reference_gradients[j]
+        grad_i = J_inv_T @ self.reference_gradients[i]
+        grad_j = J_inv_T @ self.reference_gradients[j]
 
         return elem_area * np.inner(grad_i, grad_j)
 
@@ -172,21 +177,21 @@ class Poisson2DSolver():
 
         return elem_area * grad_i @ G @ grad_j
 
-    def construct_J_inv_T_J_inv(self, element, J=None):
-        if J is None:
-            J = self.generate_jacobian(element)
-        det_J = la.det(J)
+    def construct_G(self, element, J_T=None):
+        if J_T is None:
+            J_T = self.generate_jacobian(element).T
+        det_J_T = la.det(J_T)
 
         # Sum of elements in second row of Jacobian squared:
-        g_1_1 = J[0, 1]**2 + J[1, 1]**2
+        g_1_1 = J_T[0, 1]**2 + J_T[1, 1]**2
 
         # Negative Sum of product of rows of jacobian:
-        g_1_2 = -(J[0, 0]*J[0, 1] + J[1, 0]*J[1, 1])
+        g_1_2 = -(J_T[0, 0]*J_T[0, 1] + J_T[1, 0]*J_T[1, 1])
 
         # Sum of elements in first row of Jacobian squared:
-        g_2_2 = J[0, 0]**2 + J[0, 1]**2
+        g_2_2 = J_T[0, 0]**2 + J_T[0, 1]**2
 
-        G = (1/det_J**2)*np.array([[g_1_1, g_1_2], [g_1_2, g_2_2]])
+        G = (1/det_J_T**2)*np.array([[g_1_1, g_1_2], [g_1_2, g_2_2]])
         return G
 
     def generate_A_h(self):
@@ -200,23 +205,23 @@ class Poisson2DSolver():
             
             J = self.generate_jacobian(k)
             # KRITISK FUCKINGS T!
-            J_inv = la.inv(J).T
+            J_inv_T = la.inv(J).T
             element_area = 0.5*la.det(J)
 
             # Jacobian information:
-            G = self.construct_J_inv_T_J_inv(k, J)
+            G = self.construct_G(k, J.T)
 
             # Loop through nodes. Exploit symmetry of the (A_h)_sub-matrix symmetry.
             # Only compute the upper-triangular part i <= j. Symmetric around i=j.
             for i, node_i in enumerate(element):
-                A_i_i = self.A_i_j(i, i, J_inv, element_area)
+                A_i_i = self.A_i_j(i, i, J_inv_T, element_area)
                 # A_i_i = self.A_i_j_test(i, i, G, element_area)
 
                 self.A_h[node_i, node_i] += A_i_i
                 
                 for j in range(i+1, 3):
                     node_j = element[j]
-                    A_i_j = self.A_i_j(i, j, J_inv, element_area)
+                    A_i_j = self.A_i_j(i, j, J_inv_T, element_area)
                     # A_i_j = self.A_i_j_test(i, j, G, element_area)
 
                     self.A_h[node_i, node_j] += A_i_j
@@ -277,7 +282,6 @@ class Poisson2DSolver():
         
         self.applied_BC = True
 
-
     def apply_direct_dirichlet(self):
         # Dirichlet Boundary 
         for node in self.edge_nodes:
@@ -293,6 +297,11 @@ class Poisson2DSolver():
                 # Subtract from the source vector the column corresponding to 'node', 
                 # times its Dirichlet BC-value: 
                 self.F_h -= self.A_h[:, node]*dir_bc_value
+            
+            elif self.class_BC(p) == BCtype.Neu:
+                
+                # Find which triangles the Edge node belongs to:
+                pass
         
         # Remove redundant degrees of freedom from A_h and F_h:
         F_mask = np.ones(len(self.F_h), dtype=bool)
@@ -302,6 +311,9 @@ class Poisson2DSolver():
         self.A_h = delete_from_csr(self.A_h, row_indices=self.dirichlet_BC_nodes, 
                                              col_indices=self.dirichlet_BC_nodes)
         self.applied_BC = True
+
+    def apply_boundary_conditions(self):
+        pass
 
     def solve_big_number_dirichlet(self):
         self.generate_A_h()

@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.linalg as la
 import scipy.integrate as sciint
 
 gaussquad1d_points_weights = {
@@ -28,6 +29,7 @@ def quadrature1D(g, a, b, Nq=3, *args):
     g: Integrand.
     a: Start of integration interval.
     b: End of integration interval.
+    Can be in R², but then g must accept g([x, y]).
     Nq: Number of integration points.
         Integrates polynomials upto order 
         2*Nq - 1 exactly.
@@ -43,7 +45,7 @@ def quadrature1D(g, a, b, Nq=3, *args):
     points, weights = gaussquad1d_points_weights[Nq]
 
     # Perform summation and scale up with Jacobian from transforming the integral:    
-    return ((b - a)/2.0)*sum(w*integrand(eta) for eta, w in zip(points, weights))
+    return (la.norm(b - a)/2.0)*sum(w*integrand(eta) for eta, w in zip(points, weights))
 
 
 def triangle_area(p1, p2, p3):
@@ -136,8 +138,18 @@ def test_quadrature1D(show_weights_points=False):
             \nRelative Error: {abs((I_exact - I_quad)/I_exact):.6e}")
 
 
+def test_vector1DGauss():
+    a = np.array([4.0, 2.0])
+    b = np.array([-2, 4.0])
+
+    f = lambda p: -1.0
+
+    result = quadrature1D(f, a, b, Nq=1)
+    print("Result:", result)
+
+
 if __name__ == "__main__":
     # test_quadrature1D()
-    test_quadrature2D()
-
+    # test_quadrature2D()
+    test_vector1DGauss()
  
