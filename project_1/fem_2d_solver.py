@@ -12,7 +12,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from triangulation.getdisc import GetDisc
 
 # Our Gaussian-quadrature-code:
-from gaussian_quad import quadrature2D, triangle_area
+from gaussian_quad import quadrature1D, quadrature2D, triangle_area
 
 class BCtype:
     Neu = 0
@@ -46,10 +46,9 @@ class Poisson2DSolver():
             raise NotImplementedError("Ups, only support the 'disc' geometry.")
         
         self.edge_nodes = self.edges[:, 0]
-        self.edge_triangles = self.triang[list(
-                                          filter(lambda i: any((node in self.triang[i] for node in self.edge_nodes)), 
-                                                 np.arange(len(self.triang)))
-                                          )]
+        self.edge_triangle_indexes = list(filter(lambda i: any((node in self.triang[i] for node in self.edge_nodes)), 
+                                                 np.arange(len(self.triang))))
+        self.edge_triangles = list(self.triang[self.edge_triangle_indexes])
 
         self.num_nodes = N
         self.num_unknowns = N - len(self.edge_nodes)
@@ -282,24 +281,28 @@ class Poisson2DSolver():
         
         self.applied_BC = True
 
+    def apply_node_dirichlet_bc(self, node, p=None):
+        if p is None:
+            p = self.nodes[node]
+        dir_bc_value = self.g_D(p)
+        
+        self.dirichlet_BC_mask[node] = True
+        self.dirichlet_BC_nodes.append(node)
+        self.dirichlet_BC_values.append(dir_bc_value)
+
+        # Subtract from the source vector the column corresponding to 'node', 
+        # times its Dirichlet BC-value: 
+        self.F_h -= self.A_h[:, node]*dir_bc_value
+
     def apply_direct_dirichlet(self):
         # Dirichlet Boundary 
         for node in self.edge_nodes:
             p = self.nodes[node]
 
             if self.class_BC(p) == BCtype.Dir:
-                dir_bc_value = self.g_D(p)
-                
-                self.dirichlet_BC_mask[node] = True
-                self.dirichlet_BC_nodes.append(node)
-                self.dirichlet_BC_values.append(dir_bc_value)
-
-                # Subtract from the source vector the column corresponding to 'node', 
-                # times its Dirichlet BC-value: 
-                self.F_h -= self.A_h[:, node]*dir_bc_value
+                self.apply_node_dirichlet_bc(node, p)
             
             elif self.class_BC(p) == BCtype.Neu:
-                
                 # Find which triangles the Edge node belongs to:
                 pass
         
@@ -313,7 +316,55 @@ class Poisson2DSolver():
         self.applied_BC = True
 
     def apply_boundary_conditions(self):
-        pass
+        """
+        Apply boundary conditions element-wise.
+        """
+        # Tenke mer!
+        for k, element in zip(self.edge_triangle_indexes, self.edge_triangles):
+            
+            element_edge_nodes = [node for node in element if node in self.edge_nodes]
+            edge_bc_types = [self.class_BC(self.nodes[node_i]) for node_i in element]
+
+            # Should never have more than two edge nodes in an element:
+            assert(len(element_edge_nodes) in (1, 2))            
+            
+            F_inv = lambda p: self.global_to_reference_transformation(p, element=k)
+
+            for i, (node, bc_type) in enumerate(zip(element, edge_bc_types)):
+                # Only add boundary conditions for edge nodes:
+                if node not in element_edge_nodes:
+                    continue
+
+                if bc_type == BCtype.Dir and not self.dirichlet_BC_mask[node]:
+                    self.apply_node_dirichlet_bc(node)
+
+                elif bc_type == BCtype.Neu:
+                    
+                    # No contribution if there is only one edge node in an element:
+                    if len(element_edge_nodes) == 1:
+                        continue
+                    
+                    a = self.nodes[element_edge_nodes[0]]
+                    b = self.nodes[element_edge_nodes[1]]
+
+                    def integrand(p):
+                        phi = self.basis_functions[i](F_inv(p))
+                        g_n = self.g_N(p)
+                        return g_n*phi
+                    
+                    neumann_contribution = quadrature1D(integrand, a, b, Nq=self.quad_points)
+
+                    # Add contribution from integrating over the element outer edge:
+                    self.F_h[node] += neumann_contribution
+                    
+        # Remove redundant degrees of freedom from A_h and F_h:
+        F_mask = np.ones(len(self.F_h), dtype=bool)
+        F_mask[self.dirichlet_BC_nodes] = False
+        self.F_h = self.F_h[F_mask]
+
+        self.A_h = delete_from_csr(self.A_h, row_indices=self.dirichlet_BC_nodes, 
+                                             col_indices=self.dirichlet_BC_nodes)
+        self.applied_BC = True
 
     def solve_big_number_dirichlet(self):
         self.generate_A_h()
@@ -324,8 +375,9 @@ class Poisson2DSolver():
     def solve_direct_dirichlet(self):
         self.generate_A_h()
         self.generate_F_h()
-        self.apply_direct_dirichlet()
-        
+        # self.apply_direct_dirichlet()
+        self.apply_boundary_conditions()
+
         reduced_u_h = sp.linalg.spsolve(self.A_h, self.F_h)
         self.u_h = np.zeros(self.num_nodes)
         self.u_h[~self.dirichlet_BC_mask] = reduced_u_h
