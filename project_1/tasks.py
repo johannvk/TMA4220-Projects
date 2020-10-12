@@ -406,6 +406,60 @@ def test_CG_FEM_solution(N=1000, TOL=1e-5):
     FEM_solver.display_solution()
 
 
+def test_error(N=200):
+
+    def u_ex(p):
+        return np.sin(2*np.pi * (p[0]**2 + p[1]**2))
+
+    def f(p):
+        """
+        Source function f(r, theta) = −8π*cos(2πr²)+ 16π²r²sin(2πr²)
+        p: np.array([x, y])
+        """
+        r_squared = p[0]**2 + p[1]**2
+        term_1 = -8.0*np.pi*np.cos(2*np.pi*r_squared)
+        term_2 = 16*np.pi**2*r_squared*np.sin(2*np.pi*r_squared)
+        return term_1 + term_2
+    
+    def g_D(p):
+        return 0.0
+    
+    def class_BC(p):
+        """
+        Classify all edge nodes as Dirichlet
+        """
+        return BCtype.Dir
+
+    Es = []
+    Ns = [20, 40, 80, 160, 320, 640, 1280]
+    for N in Ns:
+
+        FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=None, class_BC=class_BC, eps=1.0e-14)
+        FEM_solver.solve_direct_dirichlet()
+
+        e = FEM_solver.error_est(u_ex)
+
+        Es.append(e)
+
+    Es = np.array(Es, dtype=float)
+    Ns = np.array(Ns, dtype=float)
+    plt.loglog(Ns, Es)
+
+    def beta(x, y):
+        '''
+            Estimator for the coefficient of beta in linear regression model
+                y = alpha + beta * x
+        '''
+        n = x.shape[0]
+        beta = np.sum( (x - np.mean(x)) * (y - np.mean(y))) / np.sum( (x - np.mean(x))**2 )
+        return beta
+
+    beta = beta(np.log(Ns), np.log(Es))
+    print(f'beta = {beta}')
+
+    plt.show()
+
+    #FEM_poly.display_solution()
 
 
 if __name__ == "__main__":
@@ -419,7 +473,8 @@ if __name__ == "__main__":
     # test_simpler_solution(N=1000)
     # test_CG_FEM_solution(N=2000, TOL=1e-5)
     
-    # small_polynomial_solution(N=100)
+    # small_polynomial_solution(N=14)
     # big_polynomial_solution()
+    test_error(N=200)
     # task_3(N=1000)
     pass
