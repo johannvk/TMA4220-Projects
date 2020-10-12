@@ -401,7 +401,6 @@ class Poisson2DSolver():
 
         for k, element in enumerate(self.triang):
 
-            F = lambda eta: self.reference_to_global_transformation(eta, k, J=None)
             F_inv = lambda p: self.global_to_reference_transformation(p, k, J_inv=None)
             p1, p2, p3 = element
             x1 = self.nodes[p1]
