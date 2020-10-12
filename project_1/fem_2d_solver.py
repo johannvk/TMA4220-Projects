@@ -342,6 +342,33 @@ class Poisson2DSolver():
         self.u_h[~self.dirichlet_BC_mask] = reduced_u_h
         self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
 
+    def error_est(self, u_ex):
+        assert type(self.u_h) == type(np.array([0]))
+
+        E = 0
+
+        for k, element in enumerate(self.triang):
+
+            F = lambda eta: self.reference_to_global_transformation(eta, k, J=None)
+            F_inv = lambda p: self.global_to_reference_transformation(p, k, J_inv=None)
+            p1, p2, p3 = element
+            x1 = self.nodes[p1]
+            x2 = self.nodes[p2]
+            x3 = self.nodes[p3]
+
+            u1 = self.u_h[p1]
+            u2 = self.u_h[p2]
+            u3 = self.u_h[p3]
+
+            phi1, phi2, phi3 = self.basis_functions
+            
+            err = lambda x: ( u1*phi1(F_inv(x)) + u2*phi2(F_inv(x)) + u3*phi3(F_inv(x)) - u_ex(x) )**2
+            
+            E += quadrature2D(err, x1, x2, x3, Nq=self.quad_points)
+
+        return np.sqrt(E)
+
+
     def evaluate(self, p):
         """
         Some smart generator function returning sum of basis functions at the point [x, y],
@@ -416,15 +443,3 @@ def delete_from_csr(mat, row_indices=[], col_indices=[]):
         return mat[:,mask]
     else:
         return mat
-
-"""
-a = sp.dok_matrix((5, 5))
-for i in range(5):
-    for j in range(5):
-        a[i,j] = i*5 + j
-
-matprint(a.toarray())
-
-a_del = delete_from_csr(a.tocsr(), [0, 2], [2, 4])
-matprint(a_del.toarray())
-"""
