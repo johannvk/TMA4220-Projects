@@ -138,17 +138,17 @@ def test_quadrature1D(show_weights_points=False, Nq=4):
 
 
 def test_vector1DGauss():
-    a = np.array([4.0, 2.0])
-    b = np.array([-2, 4.0])
+    a = np.array([2.0, 2.0])
+    b = np.array([6.0, 4.0])
 
-    f = lambda p: -1.0
+    f = lambda p: 3*p[0]**2 + 4*p[1] + 5
 
-    result = quadrature1D(f, a, b, Nq=1)
+    result = quadrature1D(f, a, b, Nq=4)
     print("Result:", result)
 
 
 if __name__ == "__main__":
-    test_quadrature1D(show_weights_points=False, Nq=1)
+    #test_quadrature1D(show_weights_points=False, Nq=1)
     # test_quadrature2D()
-    # test_vector1DGauss()
+    test_vector1DGauss()
  
