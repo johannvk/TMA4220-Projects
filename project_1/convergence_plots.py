@@ -21,7 +21,8 @@ def beta(x, y):
     beta = np.sum( (x - np.mean(x)) * (y - np.mean(y))) / np.sum( (x - np.mean(x))**2 )
     return beta
 
-def dirichlet_convergence(show=True):
+
+def dirichlet_convergence(show=True, quad_points=4):
 
     def u_ex(p):
         return np.sin(2*np.pi * (p[0]**2 + p[1]**2))
@@ -51,9 +52,9 @@ def dirichlet_convergence(show=True):
         print(f"Dirichlet: N = {N}")
 
         FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=None, class_BC=class_BC, eps=1.0e-14)
-        FEM_solver.solve_direct_dirichlet()
+        FEM_solver.solve()
 
-        e = FEM_solver.error_est(u_ex)
+        e = FEM_solver.error_est(u_ex, quad_points)
 
         Es.append(e)
 
@@ -79,7 +80,7 @@ def dirichlet_convergence(show=True):
         plt.show()
 
 
-def neumann_convergence(show=True):
+def neumann_convergence(show=True, quad_points=4):
 
     def u_ex(p):
         return np.sin(2*np.pi * (p[0]**2 + p[1]**2))
@@ -113,9 +114,9 @@ def neumann_convergence(show=True):
         print(f"Neumann: N = {N}")
 
         FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=g_N, class_BC=class_BC, eps=1.0e-14)
-        FEM_solver.solve_direct_dirichlet()
+        FEM_solver.solve()
 
-        e = FEM_solver.error_est(u_ex)
+        e = FEM_solver.error_est(u_ex, quad_points)
 
         Es.append(e)
 
@@ -145,8 +146,8 @@ def neumann_convergence(show=True):
 
 if __name__ == '__main__':
 
-    dirichlet_convergence(show=False)
-    neumann_convergence(show=False)
+    dirichlet_convergence(show=False, quad_points=4)
+    neumann_convergence(show=False, quad_points=4)
     plt.show()
     
     pass

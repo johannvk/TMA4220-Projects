@@ -374,11 +374,15 @@ class Poisson2DSolver():
         self.u_h[~self.dirichlet_BC_mask] = reduced_u_h
         self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
 
-    def error_est(self, u_ex):
+    def error_est(self, u_ex, quad_points=None):
         assert type(self.u_h) == type(np.array([0]))
+
+        if quad_points == None:
+            quad_points = self.quad_points
 
         E = 0
 
+        """ For each element in triangulation. """ 
         for k, element in enumerate(self.triang):
 
             F_inv = lambda p: self.global_to_reference_transformation(p, k, J_inv=None)
@@ -391,11 +395,13 @@ class Poisson2DSolver():
             u2 = self.u_h[p2]
             u3 = self.u_h[p3]
 
-            phi1, phi2, phi3 = self.basis_functions
             
+            phi1, phi2, phi3 = self.basis_functions
+            """ err = ( u_h - u_ex )**2 """
             err = lambda x: ( u1*phi1(F_inv(x)) + u2*phi2(F_inv(x)) + u3*phi3(F_inv(x)) - u_ex(x) )**2
             
-            E += quadrature2D(err, x1, x2, x3, Nq=self.quad_points)
+            """ Gauss quadrature approximation to contribution to square error from element k """
+            E += quadrature2D(err, x1, x2, x3, Nq=quad_points)
 
         return np.sqrt(E)
 
