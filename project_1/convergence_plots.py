@@ -47,6 +47,7 @@ def dirichlet_convergence(show=True, quad_points=4):
         return BCtype.Dir
 
     Es = []
+    hs = []
     Ns = [20, 40, 80, 160, 320, 640, 1280, 2560]
     for N in Ns:
         print(f"Dirichlet: N = {N}")
@@ -55,24 +56,26 @@ def dirichlet_convergence(show=True, quad_points=4):
         FEM_solver.solve()
 
         e = FEM_solver.error_est(u_ex, quad_points)
+        h = FEM_solver.find_h()
 
         Es.append(e)
+        hs.append(h)
 
     norm_u = np.pi / 2
 
     Es = np.array(Es, dtype=float)
     Es_rel = Es / norm_u
-    Ns = np.array(Ns, dtype=float)
+    hs = np.array(hs, dtype=float)
 
-    betaD = beta(np.log(Ns), np.log(Es_rel))
+    betaD = beta(np.log(hs), np.log(Es_rel))
     print(f'Dirichlet: beta = {betaD}')
     
     plt.rcParams.update({'font.size': 14})
 
     plt.figure()
-    plt.loglog(Ns, Es_rel, 'k-', label=r"$||u - u_h||_{L_2(\Omega)} / ||u||_{L_2(\Omega)}$")
-    plt.text(Ns[2], Es_rel[2], f"Slope = {betaD:.2f}")
-    plt.xlabel("Degrees of freedom")
+    plt.loglog(hs, Es_rel, 'k-', label=r"$||u - u_h||_{L_2(\Omega)} / ||u||_{L_2(\Omega)}$")
+    plt.text(hs[4], 0.8*Es_rel[4], fr"Slope $\approx$ {betaD:.2f}")
+    plt.xlabel("$h$")
     plt.title("Relative error, Dirichlet")
     plt.legend()
 
@@ -109,6 +112,7 @@ def neumann_convergence(show=True, quad_points=4):
             return BCtype.Neu
 
     Es = []
+    hs = []
     Ns = [20, 40, 80, 160, 320, 640, 1280, 2560]
     for N in Ns:
         print(f"Neumann: N = {N}")
@@ -117,24 +121,26 @@ def neumann_convergence(show=True, quad_points=4):
         FEM_solver.solve()
 
         e = FEM_solver.error_est(u_ex, quad_points)
+        h = FEM_solver.find_h()
 
         Es.append(e)
+        hs.append(h)
 
     norm_u = np.pi / 2
 
     Es = np.array(Es, dtype=float)
     Es_rel = Es / norm_u
-    Ns = np.array(Ns, dtype=float)
+    hs = np.array(hs, dtype=float)
 
-    betaN = beta(np.log(Ns), np.log(Es_rel))
+    betaN = beta(np.log(hs), np.log(Es_rel))
     print(f'Neumann: beta = {betaN}')
 
     plt.rcParams.update({'font.size': 14})
 
     plt.figure()
-    plt.loglog(Ns, Es_rel, 'k-', label=r"$||u - u_h||_{L_2(\Omega)} / ||u||_{L_2(\Omega)}$")
-    plt.text(Ns[2], Es_rel[2], f"Slope = {betaN:.2f}")
-    plt.xlabel("Degrees of freedom")
+    plt.loglog(hs, Es_rel, 'k-', label=r"$||u - u_h||_{L_2(\Omega)} / ||u||_{L_2(\Omega)}$")
+    plt.text(hs[4], 0.8*Es_rel[4], fr"Slope $\approx$ {betaN:.2f}")
+    plt.xlabel("$h$")
     plt.title("Relative error, Neumann")
     plt.legend()
 

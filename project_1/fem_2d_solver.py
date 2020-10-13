@@ -405,6 +405,23 @@ class Poisson2DSolver():
 
         return np.sqrt(E)
 
+    def find_h(self):
+
+        h = 0
+
+        for k, element in enumerate(self.triang):
+
+            p1, p2, p3 = element
+            x1 = self.nodes[p1]
+            x2 = self.nodes[p2]
+            x3 = self.nodes[p3]
+            hk = max(np.linalg.norm(x2 - x1), np.linalg.norm(x3 - x1), np.linalg.norm(x3 - x2))
+
+            if hk > h:
+                h = hk
+
+        return h
+
     def evaluate(self, p):
         """
         Some smart generator function returning sum of basis functions at the point [x, y],
