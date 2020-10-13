@@ -375,7 +375,16 @@ class Poisson2DSolver():
     def solve_direct_dirichlet(self):
         self.generate_A_h()
         self.generate_F_h()
-        # self.apply_direct_dirichlet()
+        self.apply_direct_dirichlet()
+        
+        reduced_u_h = sp.linalg.spsolve(self.A_h, self.F_h)
+        self.u_h = np.zeros(self.num_nodes)
+        self.u_h[~self.dirichlet_BC_mask] = reduced_u_h
+        self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
+
+    def solve(self):
+        self.generate_A_h()
+        self.generate_F_h()
         self.apply_boundary_conditions()
 
         reduced_u_h = sp.linalg.spsolve(self.A_h, self.F_h)
