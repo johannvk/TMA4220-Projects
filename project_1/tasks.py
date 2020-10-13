@@ -147,14 +147,18 @@ def compare_analytical_numerical(N=20):
     def g_D(p):
         return 0.0
     
+    def g_N(p):
+        r = np.sqrt(p[0]**2 + p[1]**2)
+        return 4*np.pi*r*np.cos(2*np.pi*r**2)
+
     def class_BC(p):
-        """
-        Classify all edge nodes as Dirichlet
-        """
-        return 1
+        if p[1] <= 0.0:
+            return BCtype.Dir
+        else:
+            return BCtype.Neu
 
     print("Display numerical solution:")
-    FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=None, class_BC=class_BC)
+    FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=g_N, class_BC=class_BC)
 
     # FEM_solver.display_mesh()
 
@@ -467,7 +471,7 @@ if __name__ == "__main__":
     # test_direct_FEM_solution(N=5000)
     # test_big_number_FEM_solution(N=1000)
     # test_big_number_FEM_solution()
-    # compare_analytical_numerical(N=2000)
+    compare_analytical_numerical(N=1000)
     # display_analytical_solution(N=1000)
     # test_direct_FEM_solution(N=2000)
     # test_simpler_solution(N=1000)
@@ -475,6 +479,6 @@ if __name__ == "__main__":
     
     # small_polynomial_solution(N=14)
     # big_polynomial_solution()
-    test_error(N=200)
+    # test_error(N=200)
     # task_3(N=1000)
     pass
