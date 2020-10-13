@@ -3,7 +3,9 @@ import scipy.integrate as sciint
 
 from fem_2d_solver import Poisson2DSolver
 
-from gaussian_quad import quadrature1D, quadrature2D
+from gaussian_quad import quadrature1D, quadrature2D, \
+     gaussquad1d_points_weights, gaussquad2d_points_weights
+
 
 def generate_triangle_jacobian(self, p1, p2, p3):
     """
@@ -13,6 +15,7 @@ def generate_triangle_jacobian(self, p1, p2, p3):
     """
     J = np.column_stack([p2-p1, p3-p1])
     return J
+
 
 def test_triangle_integral():
     
@@ -51,6 +54,87 @@ def test_triangle_integral():
     # N = 100
     # test_solver = Poisson2DSolver(N=)
 
-test_triangle_integral()
 
+def test_quadrature1D(show_weights_points=False, Nq=4):
+    # Testing functionality of 1D-Gaussian Quadrature:
+
+    if show_weights_points: # Display Gaussian points and weights.
+        for key, value in gaussquad1d_points_weights.items():
+            print(f"Gauss Points: {key}\nPoints: {value[0]}\nWeights: {value[1]}\n")
+
+    func = lambda x: np.exp(x)
+    a, b = 1.0, 2.0
+    I_quad = quadrature1D(func, a, b, Nq)
+
+    I_exact = np.exp(b) - np.exp(a)
+
+    print(f"\nExact answer: {I_exact}\
+            \nGauss Quad. answer: {I_quad}\
+            \nRelative Error: {abs((I_exact - I_quad)/I_exact):.6e}")
+
+
+def test_vector1DGauss():
+    a = np.array([2.0, 2.0])
+    b = np.array([6.0, 4.0])
+
+    f = lambda p: 3*p[0]**2 + 4*p[1] + 5
+
+    result = quadrature1D(f, a, b, Nq=4)
+    print("Result:", result)
+
+
+def test_quadrature2D(show_weights_points=False):
+    if show_weights_points: # Display Gaussian points and weights.
+        for key, value in gaussquad2d_points_weights.items():
+            print(f"Gauss Points: {key}\nPoints: {value[0]}\nWeights: {value[1]}\n")    
+    
+    def problem_2_test():
+        print("\nTesting Problem 2. Integral of log(x+y):")
+        func = lambda p: np.log(p[0] + p[1])
+        p1 = np.array([1.0, 0.0])
+        p2 = np.array([3.0, 1.0])
+        p3 = np.array([3.0, 2.0])
+
+        I_exact = 1.165417026740377
+        I_quad = quadrature2D(func, p1, p2, p3, Nq=4)
+
+        # Ugly expression:
+        # I_exact1 = 1.165417026740377
+        # I_quad1 = quadrature2D(func, p1, p2, p3, Nq=4)
+
+        print(f"\nExact answer: {I_exact}\
+            \nGauss Quad. answer: {I_quad}\
+            \nRelative Error: {abs((I_exact - I_quad)/I_exact):.6e}")
+
+    def polynomial_triangle_test():
+        print("\nTesting Polynomial integration: f(x,y) = 2x²-y:")
+        a = 4.0 
+        b = 12.0
+
+        func = lambda p: 2*p[0]**2 - p[1]
+        p1 = np.array([0.0, 0.0])
+        p2 = np.array([a, 0.0])
+        p3 = np.array([0.0, b])
+        
+        I_exact = (a*b/6.0)*(a**2 - b)
+        I_quad = quadrature2D(func, p1, p2, p3, Nq=3)
+
+        # I_quad = sciint.dblquad(lambda y, x: func([x, y]), 0.0, a, y_0_x, y_1_x)[0]
+
+        print(f"\nExact answer: {I_exact}\
+            \nGauss Quad. answer: {I_quad}\
+            \nRelative Error: {abs((I_exact - I_quad)/I_exact):.6e}")
+
+    problem_2_test()    
+    polynomial_triangle_test()
+
+
+
+
+if __name__ == "__main__":
+    test_quadrature1D(show_weights_points=False, Nq=4)
+    test_quadrature2D()
+    # test_triangle_integral()
+    test_vector1DGauss()
+ 
     

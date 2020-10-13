@@ -169,30 +169,6 @@ class Poisson2DSolver():
 
         return elem_area * np.inner(grad_i, grad_j)
 
-    def A_i_j_test(self, i, j, G, elem_area):
-
-        grad_i = self.reference_gradients[i]
-        grad_j = self.reference_gradients[j]
-
-        return elem_area * grad_i @ G @ grad_j
-
-    def construct_G(self, element, J_T=None):
-        if J_T is None:
-            J_T = self.generate_jacobian(element).T
-        det_J_T = la.det(J_T)
-
-        # Sum of elements in second row of Jacobian squared:
-        g_1_1 = J_T[0, 1]**2 + J_T[1, 1]**2
-
-        # Negative Sum of product of rows of jacobian:
-        g_1_2 = -(J_T[0, 0]*J_T[0, 1] + J_T[1, 0]*J_T[1, 1])
-
-        # Sum of elements in first row of Jacobian squared:
-        g_2_2 = J_T[0, 0]**2 + J_T[0, 1]**2
-
-        G = (1/det_J_T**2)*np.array([[g_1_1, g_1_2], [g_1_2, g_2_2]])
-        return G
-
     def generate_A_h(self):
         """
         Generate the Stiffness Matrix A_h, based on linear Langrange basis functions on triangles.
@@ -203,25 +179,19 @@ class Poisson2DSolver():
         for k, element in enumerate(self.triang):
             
             J = self.generate_jacobian(k)
-            # KRITISK FUCKINGS T!
-            J_inv_T = la.inv(J).T
+            J_inv_T = la.inv(J).T  # KRITISK FUCKINGS '.T'!
             element_area = 0.5*la.det(J)
 
-            # Jacobian information:
-            G = self.construct_G(k, J.T)
-
             # Loop through nodes. Exploit symmetry of the (A_h)_sub-matrix symmetry.
-            # Only compute the upper-triangular part i <= j. Symmetric around i=j.
+            # Only compute the upper-triangular part i <= j. Symmetric about i=j.
             for i, node_i in enumerate(element):
                 A_i_i = self.A_i_j(i, i, J_inv_T, element_area)
-                # A_i_i = self.A_i_j_test(i, i, G, element_area)
 
                 self.A_h[node_i, node_i] += A_i_i
                 
                 for j in range(i+1, 3):
                     node_j = element[j]
                     A_i_j = self.A_i_j(i, j, J_inv_T, element_area)
-                    # A_i_j = self.A_i_j_test(i, j, G, element_area)
 
                     self.A_h[node_i, node_j] += A_i_j
                     self.A_h[node_j, node_i] += A_i_j
@@ -317,9 +287,9 @@ class Poisson2DSolver():
 
     def apply_boundary_conditions(self):
         """
-        Apply boundary conditions element-wise.
+        Apply boundary conditions element-wise. Take care to avoid
+        applying Dirichlet boundary conditions for a node more than once.
         """
-        # Tenke mer!
         for k, element in zip(self.edge_triangle_indexes, self.edge_triangles):
             
             element_edge_nodes = [node for node in element if node in self.edge_nodes]
@@ -427,7 +397,6 @@ class Poisson2DSolver():
             E += quadrature2D(err, x1, x2, x3, Nq=self.quad_points)
 
         return np.sqrt(E)
-
 
     def evaluate(self, p):
         """

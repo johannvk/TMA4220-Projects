@@ -92,7 +92,7 @@ def test_F_h():
     solver.display_mesh()
 
 
-def test_integrating_source_func_over_triangle(f, k, i_loc, FEM_solver):
+def integrate_source_func_over_triangle(f, k, i_loc, FEM_solver):
     # Testing integration of the source function over a triangle. 
     # In the Global Coordinates.
     glob_loc_coord = FEM_solver.global_to_reference_transformation
