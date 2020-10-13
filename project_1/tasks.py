@@ -101,7 +101,8 @@ def direct_dirichlet_FEM_solution(N=1000):
 
 
 def task_3(N=1000):
-
+    print("\nTask 3: Neumann & Dirichlet Boundary Conditions")
+ 
     def f(p):
         """
         Source function f(r, theta) = −8π*cos(2πr²)+ 16π²r²sin(2πr²)
@@ -126,7 +127,7 @@ def task_3(N=1000):
             return BCtype.Neu
     
     FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=g_N, class_BC=class_BC)
-    FEM_solver.solve_direct_dirichlet()
+    FEM_solver.solve()
     FEM_solver.display_solution()
 
 
@@ -300,9 +301,10 @@ def test_error_neumann():
 
 if __name__ == "__main__":
     task_2_e()
+    task_3(N=1000)
+
     # big_number_dirichlet_FEM_solution()
     # direct_dirichlet_FEM_solution()
     # display_error_neumann_BC()
     # display_analytical_solution(N=1000)
-    # task_3(N=1000)
-    pass
+    

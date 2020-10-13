@@ -274,7 +274,7 @@ class Poisson2DSolver():
             
             elif self.class_BC(p) == BCtype.Neu:
                 # Find which triangles the Edge node belongs to:
-                pass
+                raise ValueError("Cannot apply Neumann BC Using Direct Dirichlet function!")
         
         # Remove redundant degrees of freedom from A_h and F_h:
         F_mask = np.ones(len(self.F_h), dtype=bool)
