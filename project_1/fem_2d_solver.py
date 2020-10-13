@@ -3,6 +3,7 @@ import scipy.sparse as sp
 import scipy.linalg as la
 
 # Plotting imports:
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.tri as mtri
 from mpl_toolkits.mplot3d import Axes3D
@@ -406,7 +407,7 @@ class Poisson2DSolver():
         """
         pass
 
-    def display_solution(self, u_h=None):
+    def display_solution(self, u_h=None, title=None):
         """
         Need a way of evaluating the sum of basis functions in a smart way. 
         """
@@ -415,17 +416,27 @@ class Poisson2DSolver():
         else:
             assert(len(u_h) == self.num_nodes)
         
-        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-        fig.suptitle("Solution Plot")
-        
-        # Kind of what we want: Values at nodes decided by u_h-array.
-        # Then the value descendes to zero on all nodes around it.
-        ax.plot_trisurf(self.nodes[:, 0], self.nodes[:, 1], u_h, triangles=self.triang, 
-                        cmap=plt.cm.jet, antialiased=True)
+        plt.rcParams.update({'font.size': 18})
 
+        # fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+
+        if title is None:
+            fig.suptitle("Solution Plot")
+        else:
+            fig.suptitle(title)
+        
         min_u_h, max_u_h = np.min(u_h), np.max(u_h)
         scale = abs(max_u_h - min_u_h)
 
+        cmap = plt.cm.jet        
+        norm = mpl.colors.Normalize(vmin=min_u_h - 0.1*scale, vmax=max_u_h + 0.1*scale)
+
+        tri_plot = ax.plot_trisurf(self.nodes[:, 0], self.nodes[:, 1], u_h, triangles=self.triang, 
+                                   cmap=cmap, antialiased=True)
+        fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label='$u_h(x, y)$')
+        
         ax.set_zlim(min_u_h - 0.1*scale, max_u_h + 0.1*scale)
         ax.set_xlabel("x")
         ax.set_ylabel("y")

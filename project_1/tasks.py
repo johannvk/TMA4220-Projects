@@ -128,7 +128,7 @@ def task_3(N=1000):
     
     FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=g_N, class_BC=class_BC)
     FEM_solver.solve()
-    FEM_solver.display_solution()
+    FEM_solver.display_solution(title="FEM Solution, Neumann & Dirichlet BC's")
 
 
 def display_error_neumann_BC(N=500, u=None):
@@ -300,7 +300,7 @@ def test_error_neumann():
 
 
 if __name__ == "__main__":
-    task_2_e()
+    # task_2_e()
     task_3(N=1000)
 
     # big_number_dirichlet_FEM_solution()
