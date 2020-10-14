@@ -347,13 +347,14 @@ class Poisson2DSolver():
                 # Only add boundary conditions for edge nodes:
                 if node not in element_edge_nodes:
                     continue
-
+                
+                # Ensure that the Dirichlet node's bc has not been applied yet
                 if bc_type == BCtype.Dir and not self.dirichlet_BC_mask[node]:
                     self.apply_node_dirichlet_bc(node)
 
                 elif bc_type == BCtype.Neu:
                     
-                    # No contribution if there is only one edge node in an element:
+                    # No contribution if there is only one edge node in the element:
                     if len(element_edge_nodes) == 1:
                         continue
                     
@@ -417,7 +418,7 @@ class Poisson2DSolver():
         self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
 
     def error_est(self, u_ex, quad_points=None):
-        assert type(self.u_h) == type(np.array([0]))
+        assert isinstance(self.u_h, np.ndarray)
 
         if quad_points == None:
             quad_points = self.quad_points
@@ -470,12 +471,10 @@ class Poisson2DSolver():
         located in some element K.
         p: np.array([x, y])
         """
-        pass
+
+        raise NotImplementedError
 
     def display_solution(self, u_h=None, title=None):
-        """
-        Need a way of evaluating the sum of basis functions in a smart way. 
-        """
         if u_h is None:
             u_h = self.u_h
         else:
@@ -483,7 +482,6 @@ class Poisson2DSolver():
         
         plt.rcParams.update({'font.size': 18})
 
-        # fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
 

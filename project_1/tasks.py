@@ -89,7 +89,7 @@ def big_number_dirichlet_FEM_solution(N=1000):
         """
         Classify all edge nodes as Dirichlet
         """
-        return 1
+        return BCtype.Dir
 
     print("Solving Big Number Dirichlet solution:")
     FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=None, class_BC=class_BC, eps=1.0e-2)
@@ -117,7 +117,7 @@ def direct_dirichlet_FEM_solution(N=1000):
         """
         Classify all edge nodes as Dirichlet
         """
-        return 1
+        return BCtype.Dir
 
     FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=None, class_BC=class_BC, eps=1.0e-8)
     FEM_solver.solve_direct_dirichlet()
