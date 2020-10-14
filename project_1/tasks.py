@@ -36,6 +36,7 @@ def task_2_e(N=1000):
     eigvals = la.eigvals(A_h)
     if any(np.abs(eigvals) < 1.0e-14):
         print("\nTask 2 e):\n\tThe matrix A_h, constructed without imposing any boundary conditions, is Singular.")
+        print(f"\t|l_min| = {np.amin(np.abs(eigvals)):.2e}")
 
 
 def task_3(N=1000):
