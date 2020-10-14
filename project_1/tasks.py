@@ -131,8 +131,7 @@ def direct_dirichlet_FEM_solution(N=1000):
     FEM_solver.display_solution()
 
 
-
-def display_error_neumann_BC(N=500, u=None):
+def display_abs_error(N=1000, dirichlet=True, u=None):
 
     if u is None:
         def u(p):
@@ -161,31 +160,38 @@ def display_error_neumann_BC(N=500, u=None):
         r = np.sqrt(p[0]**2 + p[1]**2)
         return 4*np.pi*r*np.cos(2*np.pi*r**2)
 
-    def class_BC(p):
+    def class_BC_neumann(p):
         if p[1] <= 0.0:
             return BCtype.Dir
         else:
             return BCtype.Neu
+
+    def class_BC_dirichlet(p):
+        return BCtype.Dir
+    
+    if dirichlet:
+        class_BC = class_BC_dirichlet
+    else:
+        class_BC = class_BC_neumann
 
     print("\nCalculating numerical solution:")
     FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=g_N, class_BC=class_BC)
 
     print("Displaying Numerical solution:")
     FEM_solver.solve()
-    FEM_solver.display_solution()
+    # FEM_solver.display_solution()
     
     u_exact = np.array([u(p) for p in FEM_solver.nodes])
-    error_coeffs = u_exact - FEM_solver.u_h
-    FEM_solver.display_solution(error_coeffs)
+    error_coeffs = np.abs(u_exact - FEM_solver.u_h)
+    FEM_solver.display_solution(error_coeffs, title="FEM error, Mixed BC's")
 
 
 if __name__ == "__main__":
 
-    task_2_e()
-    task_3()
-
-    # big_number_dirichlet_FEM_solution()
+    # task_2_e()
+    # task_3()
     # direct_dirichlet_FEM_solution()
-    # display_error_neumann_BC()
+    # big_number_dirichlet_FEM_solution()
+    display_abs_error(dirichlet=False)
     # display_analytical_solution(N=1000)
 

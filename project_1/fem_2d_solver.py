@@ -484,7 +484,7 @@ class Poisson2DSolver():
         plt.rcParams.update({'font.size': 18})
 
         # fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-        fig = plt.figure()
+        fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(111, projection='3d')
 
         if title is None:
@@ -500,11 +500,12 @@ class Poisson2DSolver():
 
         tri_plot = ax.plot_trisurf(self.nodes[:, 0], self.nodes[:, 1], u_h, triangles=self.triang, 
                                    cmap=cmap, antialiased=True)
-        fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), label='$u_h(x, y)$')
+        fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap))
         
         ax.set_zlim(min_u_h - 0.1*scale, max_u_h + 0.1*scale)
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("z")
+        plt.subplots_adjust(left=0.0, bottom=0.0, right=1.0, top=1.0)
         plt.show()
             
