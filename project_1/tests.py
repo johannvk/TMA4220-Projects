@@ -59,8 +59,8 @@ def test_A_i_j():
     matprint(A_h)
     col_sums = np.sum(A_h, axis=-1)
     print("col_sums:\n", col_sums)
-    x_test = np.linalg.solve(A_h, np.random.randn(num_nodes))
-    A_h_eigvals = la.eigvals(A_h) # One zero-eigenvalue. Singular.
+    # x_test = np.linalg.solve(A_h, np.random.randn(num_nodes))
+    # A_h_eigvals = la.eigvals(A_h) # One zero-eigenvalue. Singular.
     a.display_mesh()
 
 
@@ -323,11 +323,133 @@ def test_simpler_solution(N=1000):
     display_analytical_solution(N=N, u=u_simple)
 
 
+def test_error():
+
+    def u_ex(p):
+        return np.sin(2*np.pi * (p[0]**2 + p[1]**2))
+
+    def f(p):
+        """
+        Source function f(r, theta) = −8π*cos(2πr²)+ 16π²r²sin(2πr²)
+        p: np.array([x, y])
+        """
+        r_squared = p[0]**2 + p[1]**2
+        term_1 = -8.0*np.pi*np.cos(2*np.pi*r_squared)
+        term_2 = 16*np.pi**2*r_squared*np.sin(2*np.pi*r_squared)
+        return term_1 + term_2
+    
+    def g_D(p):
+        return 0.0
+    
+    def class_BC(p):
+        """
+        Classify all edge nodes as Dirichlet
+        """
+        return BCtype.Dir
+
+    Es = []
+    Ns = [20, 40, 80, 160, 320, 640, 1280]
+    for N in Ns:
+
+        FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=None, class_BC=class_BC, eps=1.0e-14)
+        FEM_solver.solve_direct_dirichlet()
+
+        e = FEM_solver.error_est(u_ex)
+
+        Es.append(e)
+
+    Es = np.array(Es, dtype=float)
+    Ns = np.array(Ns, dtype=float)
+    plt.loglog(Ns, Es, 'k-', label=r"$||u - u_h||_{L_2(\Omega)}$")
+    plt.xlabel("Degrees of freedom")
+    #plt.ylabel(r"$||u - u_h||_{L_2(\Omega)}$")
+    plt.legend()
+
+    def beta(x, y):
+        '''
+            Estimator for the coefficient of beta in linear regression model
+                y = alpha + beta * x
+        '''
+        beta = np.sum( (x - np.mean(x)) * (y - np.mean(y))) / np.sum( (x - np.mean(x))**2 )
+        return beta
+
+    beta = beta(np.log(Ns), np.log(Es))
+    print(f'beta = {beta}')
+
+    plt.show()
+
+
+def test_error_neumann():
+
+    def u_ex(p):
+        return np.sin(2*np.pi * (p[0]**2 + p[1]**2))
+
+    def f(p):
+        """
+        Source function f(r, theta) = −8π*cos(2πr²)+ 16π²r²sin(2πr²)
+        p: np.array([x, y])
+        """
+        r_squared = p[0]**2 + p[1]**2
+        term_1 = -8.0*np.pi*np.cos(2*np.pi*r_squared)
+        term_2 = 16*np.pi**2*r_squared*np.sin(2*np.pi*r_squared)
+        return term_1 + term_2
+    
+    def g_D(p):
+        return 0.0
+
+    def g_N(p):
+        r = np.sqrt(p[0]**2 + p[1]**2)
+        return 4*np.pi*r*np.cos(2*np.pi*r**2)
+    
+    def class_BC(p):
+        if p[1] <= 0.0:
+            return BCtype.Dir
+        else:
+            return BCtype.Neu
+
+    Es = []
+    Ns = [20, 40, 80, 160, 320, 640, 1280]
+    for N in Ns:
+
+        FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=g_N, class_BC=class_BC, eps=1.0e-14)
+        FEM_solver.solve_direct_dirichlet()
+
+        e = FEM_solver.error_est(u_ex)
+
+        Es.append(e)
+
+    norm_u = np.pi / 2
+
+    Es = np.array(Es, dtype=float)
+    Es_rel = Es / norm_u
+    Ns = np.array(Ns, dtype=float)
+    plt.loglog(Ns, Es_rel, 'k-', label=r"$||u - u_h||_{L_2(\Omega)}$")
+    plt.xlabel("Degrees of freedom")
+    plt.title("Relative error, Neumann")
+    plt.legend()
+
+    def beta(x, y):
+        '''
+            Estimator for the coefficient of beta in linear regression model
+                y = alpha + beta * x
+        '''
+        n = x.shape[0]
+        beta = np.sum( (x - np.mean(x)) * (y - np.mean(y))) / np.sum( (x - np.mean(x))**2 )
+        return beta
+
+    beta = beta(np.log(Ns), np.log(Es_rel))
+    print(f'beta = {beta}')
+
+    plt.show()
+
+
 def main():
     basic_tests()
     test_A_i_j()
     test_F_h()
-
+    test_error()
+    test_error_neumann()
+    return
 
 if __name__ == "__main__":
     main()

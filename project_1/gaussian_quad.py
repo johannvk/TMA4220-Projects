@@ -72,4 +72,3 @@ def quadrature2D(g, p1, p2, p3, Nq=3, *args):
 
     I = sum(w*integrand(eta) for eta, w in zip(points, weights))
     return triangle_area(p1, p2, p3)*I
-
