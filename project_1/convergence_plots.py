@@ -48,7 +48,7 @@ def dirichlet_convergence(show=True, quad_points=4):
 
     Es = []
     hs = []
-    Ns = [20, 40, 80, 160, 320, 640, 1280, 2560]
+    Ns = [40, 80, 160, 320, 640, 1280]
     for N in Ns:
         print(f"Dirichlet: N = {N}")
 
@@ -74,9 +74,9 @@ def dirichlet_convergence(show=True, quad_points=4):
 
     plt.figure()
     plt.loglog(hs, Es_rel, 'k-', label=r"$||u - u_h||_{L_2(\Omega)} / ||u||_{L_2(\Omega)}$")
-    plt.text(hs[4], 0.8*Es_rel[4], fr"Slope $\approx$ {betaD:.2f}")
+    plt.text(hs[2], 0.8*Es_rel[2], fr"Slope $\approx$ {betaD:.2f}")
     plt.xlabel("$h$")
-    plt.title("Relative error, Dirichlet")
+    plt.title("Relative error, Dirichlet BC's")
     plt.legend()
 
     if show:
@@ -113,7 +113,7 @@ def neumann_convergence(show=True, quad_points=4):
 
     Es = []
     hs = []
-    Ns = [20, 40, 80, 160, 320, 640, 1280, 2560]
+    Ns = [40, 80, 160, 320, 640, 1280]
     for N in Ns:
         print(f"Neumann: N = {N}")
 
@@ -139,9 +139,9 @@ def neumann_convergence(show=True, quad_points=4):
 
     plt.figure()
     plt.loglog(hs, Es_rel, 'k-', label=r"$||u - u_h||_{L_2(\Omega)} / ||u||_{L_2(\Omega)}$")
-    plt.text(hs[4], 0.8*Es_rel[4], fr"Slope $\approx$ {betaN:.2f}")
+    plt.text(hs[2], 0.8*Es_rel[2], fr"Slope $\approx$ {betaN:.2f}")
     plt.xlabel("$h$")
-    plt.title("Relative error, Neumann")
+    plt.title("Relative error, mixed BC's")
     plt.legend()
 
 
