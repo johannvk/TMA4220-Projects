@@ -8,9 +8,10 @@ import matplotlib.tri as mtri
 from mpl_toolkits.mplot3d import Axes3D
 
 # Our code:
-from fem_2d_solver import Poisson2DSolver, BCtype, matprint
-from gaussian_quad import quadrature1D, quadrature2D
-from tasks import display_analytical_solution
+from .fem_2d_solver import Poisson2DSolver 
+from ..tools import quadrature1D, quadrature2D, \
+                          BCtype, matprint
+from .tasks import display_analytical_solution
 
 
 def basic_tests():
@@ -443,7 +444,7 @@ def test_error_neumann():
     plt.show()
 
 
-def main():
+def test_main():
     basic_tests()
     test_A_i_j()
     test_F_h()
@@ -452,4 +453,4 @@ def main():
     return
 
 if __name__ == "__main__":
-    main()
+    test_main()

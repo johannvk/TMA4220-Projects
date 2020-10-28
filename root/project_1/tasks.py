@@ -8,8 +8,8 @@ import matplotlib.tri as mtri
 from mpl_toolkits.mplot3d import Axes3D
 
 # Our code:
-from fem_2d_solver import Poisson2DSolver, matprint, BCtype
-from gaussian_quad import quadrature2D
+from .fem_2d_solver import Poisson2DSolver
+from ..tools import quadrature2D, matprint, BCtype 
 
 
 def display_analytical_solution(N=1000, u=None):
@@ -187,10 +187,9 @@ def display_abs_error(N=1000, dirichlet=True, u=None):
     FEM_solver.display_solution(error_coeffs, title="FEM error, Mixed BC's")
 
 
-if __name__ == "__main__":
-
-    # task_2_e()
-    # task_3()
+def run_tasks():
+    task_2_e()
+    task_3()
     # direct_dirichlet_FEM_solution()
     # big_number_dirichlet_FEM_solution()
     display_abs_error(dirichlet=False)
