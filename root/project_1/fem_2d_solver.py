@@ -157,8 +157,7 @@ class Poisson2DSolver():
         Function calculating the (Aₕ)ᵢ,ⱼ-th element of the "Stiffness"-matrix.
         i: Local index of basis function. [0, 1, 2]
         j: Local index of basis function. [0, 1, 2]
-        element: Which element to integrate over. Scale integrand using the Jacobian matrix.
-        J_inv: Inverse Jacobian: ∂(r,s)/∂(x, y)
+        J_inv_T: Inverse Jacobian transposed: [∂(r,s)/∂(x, y)].T
         elem_area: Area of the element: |J|/2
         """
         

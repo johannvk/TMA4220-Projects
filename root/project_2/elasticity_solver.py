@@ -2,7 +2,9 @@ import numpy as np
 import scipy.linalg as la
 import scipy.sparse as sp
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.tri as mtri
 
 from ..triangulation.getplate import getPlate
 from ..tools import matprint, delete_from_csr, \
@@ -15,26 +17,27 @@ class Elasticity2DSolver():
         ∇ᵀσ(u) = -f, (x, y) ∈ Ω = [-1, 1]² \n
     \nUsing Linear basis function Polynomials.    
     """
-    def __init__(self, N, f, g_D, g_N, class_BC, E, nu,
+    def __init__(self, N, f, g_D, g_N, class_BC, E, nu, rho,
                  quad_points=4, area="plate", eps=1.0e-10):
         """
         Initializer for 2D-FEM solver of the static equilibrium equation:\n
             ∇ᵀσ(u) = -f, (x, y) ∈ Ω = [-1, 1]² \n
 
-        N: sqrt(Number of nodes for the mesh).
-        f: Source function.
-        E: Youngs modulus of your material.
-        nu: Poissons ratio for your material.
-        g_D: Function g([x, y]) -> R, specifying Dirichlet boundary conditions.
-        g_N: Function g([x, y]) -> R, specifying Neumann boundary conditions.
-        class_BC: Function BC_type([x, y]) -> Bool, returning True if point [x, y] \n
-                  should be a Dirichlet BC. Assumed Neumann if not. 
+        N:      sqrt(Number of nodes for the mesh). \n
+        f:      Source function. ℜ² ⇒ ℜ².          \n
+        E:      Youngs modulus of your material.    \n
+        nu:     Poisson ratio of your material.     \n
+        rho:    Density per area of your materal.   \n
+        g_D:    Function g([x, y]) -> R, specifying Dirichlet boundary conditions. \n
+        g_N:    Function g([x, y]) -> R, specifying Neumann boundary conditions.   \n
+        class_BC: Function BC_type([x, y]) -> Bool, returning True if point [x, y] 
+                  should be a Dirichlet BC. Assumed Neumann if not.                \n
         area: What geometry to solve the elasticity equation on. Default: "plate".
         """
         # Geometry setup:
         if area == "plate":
             # We get incorrect edges out of 'getPlate()'. 
-            # Fixed to only get edge nodes now.
+            # Fixed to only get edge nodes for now.
             self.nodes, self.triang, self.edge_nodes = getPlate(N)
         else:
             raise NotImplementedError("Ups, only support the 'plate' geometry.")
@@ -56,6 +59,12 @@ class Elasticity2DSolver():
         self.f = f
         self.g_D = g_D
         self.g_N = g_N
+        
+        # Material properties:
+        self.E = E
+        self.nu = nu
+        self.rho = rho
+
         self.class_BC = class_BC
         self.eps = eps  # Big-Number Epsilon.
         
@@ -117,10 +126,46 @@ class Elasticity2DSolver():
 
         else:
             element_triang = self.triang[elements]
-
+        
         plt.triplot(self.nodes[:, 0], self.nodes[:, 1], triangles=element_triang)
+        
+        # TODO: Make x-lim, y-lim adaptive.
         plt.xlim(-1.05, 1.05)
         plt.ylim(-1.05, 1.05)
+        plt.show()
+
+    def display_vector_field(self, u, title=None):
+        """
+        Display a vector field over the domain Ω.\n
+            u([x, y]) → [u_x(x, y), u_y(x, y)]
+        """
+        assert(callable(u))
+        
+        plt.rcParams.update({'font.size': 18})
+
+        fig = plt.figure(figsize=(14, 14))
+        ax = fig.add_subplot(111)
+
+        if title is None:
+            fig.suptitle("Vector Field Plot")
+        else:
+            fig.suptitle(title)
+        # Arrow locations:
+        X, Y = self.nodes[:, 0], self.nodes[:, 1]
+
+        # Vector X- and Y-components:
+        vectors = np.array([u(p) for p in self.nodes])
+        U, V = vectors[:, 0], vectors[:, 1]
+        
+        Q = ax.quiver(X, Y, U, V, scale=12, angles='xy', scale_units='xy')
+        ax.quiverkey(Q, X=0.3, Y=0.97, U=1, coordinates='figure',
+                     label='Quiver key, length = 1', labelpos='W')
+        
+        ax.triplot(X, Y, self.triang, alpha=0.3, zorder=-10)        
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y", rotation=0)
+
+        plt.subplots_adjust(left=0.08, bottom=0.08, right=0.97, top=0.95)
         plt.show()
 
     def generate_jacobian(self, element: int):
@@ -163,7 +208,7 @@ class Elasticity2DSolver():
             J_inv = la.inv(self.generate_jacobian(element))
         return J_inv @ (p - translation)
      
-    def basis_func_eps_vec(self, i, d, k, J_inv_T=None):
+    def basis_func_eps_vec(self, i, d, J_inv_T=None, k=None):
         """
         Calculate the epsilon-vector for a basis-function:\n
             ε(ϕ) = [∂ϕ₁/∂x, ∂ϕ₂/∂y, ∂ϕ₁/∂y + ∂ϕ₂/∂x],
@@ -171,10 +216,17 @@ class Elasticity2DSolver():
         Based on transforming derivatives from the reference element.\n
         i: Local basis function index. i = 0, 1, 2.\n
         d: x- or y-component basis vector. {x: 0, y: 1}\n
+        J_inv_T: Inverse Jacobian: [∂(r,s)/∂(x, y)].T\n
         k: Element number.
         """
-        if J_inv_T is None:
+        # Slow extra checking. Might be removed. 
+        if J_inv_T is not None:
+            pass
+        elif J_inv_T is None and type(k) is int:
             J_inv_T = la.inv(self.generate_jacobian(k)).T
+        else:
+            raise ValueError("Either the inverse-Jacobian transpose 'J_int_T' or element number 'k' must be given.")
+
         gradient = J_inv_T @ self.reference_gradients[i]
 
         eps_xx = (1 - d)*gradient[0]
@@ -183,53 +235,93 @@ class Elasticity2DSolver():
         
         return np.array([eps_xx, eps_yy, eps_xy])
      
-    def A_i_j(self, i, j, J_inv_T, elem_area):
-        # TODO: UPDATE
+    def A_i_j(self, i_loc, j_loc, d_i, d_j, A_k, J_inv_T):
         """
-        Function calculating the (Aₕ)ᵢ,ⱼ-th element of the "Stiffness"-matrix.
-        i: Local index of basis function. [0, 1, 2]
-        j: Local index of basis function. [0, 1, 2]
-        element: Which element to integrate over. Scale integrand using the Jacobian matrix.
-        J_inv: Inverse Jacobian: ∂(r,s)/∂(x, y)
-        elem_area: Area of the element: |J|/2
+        Function calculating a (Aₕ)ᵢ,ⱼ-th contribution to the "Stiffness"-matrix.
+        i_loc: Local index of basis function. [0, 1, 2]
+        j_loc: Local index of basis function. [0, 1, 2]
+        d_i, d_j: Components of the vector function ϕ_i_d = [(1-d)*ϕ_i, d*ϕ_i]
+        A_k: Area of the element: |Jₖ|/2
+        J_inv_T: Inverse Jacobian: [∂(r,s)/∂(x, y)].T
         """
-        
-        grad_i = J_inv_T @ self.reference_gradients[i]
-        grad_j = J_inv_T @ self.reference_gradients[j]
-
-        return elem_area * np.inner(grad_i, grad_j)
+        eps_i = self.basis_func_eps_vec(i_loc, d_i, J_inv_T)        
+        eps_j = self.basis_func_eps_vec(j_loc, d_j, J_inv_T)        
+        # Could do: eps_i.T @ self.C @ eps_j, but '.T' does nothing for 1-D array.
+        return A_k * (eps_i @ self.C @ eps_j)
 
     def generate_A_h(self):
-        # TODO: UPDATE
+        # Hopefully updated correctly!
         """
         Generate the Stiffness Matrix A_h, based on linear Langrange basis functions on triangles.
         """
-        self.A_h = sp.dok_matrix((self.num_nodes, self.num_nodes))
+        self.A_h = sp.dok_matrix((self.num_basis_functions, self.num_basis_functions))
+        d_pairs = ((0, 0), (0, 1), (1, 0), (1, 1))
 
         # Loop through elements (triangles):        
         for k, element in enumerate(self.triang):
-            
+            # Six basis functions per element. 3 nodes, 2 functions per node.
+            # (3x2)^2 = 36 interactions per element k.
+            # Only 6*(6+1)/2 = 21 unique interactions due to symmetry, but
+            # for simplicity in code we perform 24 calculations.
+
             J = self.generate_jacobian(k)
             J_inv_T = la.inv(J).T  # KRITISK FUCKINGS '.T'!
             element_area = 0.5*la.det(J)
-
-            # Loop through nodes. Exploit symmetry of the (A_h)_sub-matrix symmetry.
-            # Only compute the upper-triangular part i <= j. Symmetric about i=j.
-            for i, node_i in enumerate(element):
-                A_i_i = self.A_i_j(i, i, J_inv_T, element_area)
-
-                self.A_h[node_i, node_i] += A_i_i
+            
+            # Exploit symmetry of the (A_h)_sub-matrix about i=j.
+            # Only compute the upper-triangular part i <= j.
+            for i_loc, node_i in enumerate(element):
                 
-                for j in range(i+1, 3):
-                    node_j = element[j]
-                    A_i_j = self.A_i_j(i, j, J_inv_T, element_area)
+                # Do every vector-component combination. 
+                for (d_i, d_j) in d_pairs:
+                    A_i_di_j_dj = self.A_i_j(i_loc=i_loc, j_loc=i_loc, d_i=d_i, d_j=d_j, 
+                                             A_k=element_area, J_inv_T=J_inv_T)
+                    self.A_h[2*node_i + d_i, 2*node_i + d_j] += A_i_di_j_dj
 
-                    self.A_h[node_i, node_j] += A_i_j
-                    self.A_h[node_j, node_i] += A_i_j
+                for j_loc in range(i_loc+1, 3):
+                    node_j = element[j_loc]
+                    
+                    for (d_i, d_j) in d_pairs:
+                        A_i_di_j_dj = self.A_i_j(i_loc=i_loc, j_loc=j_loc, d_i=d_i, d_j=d_j, 
+                                                 A_k=element_area, J_inv_T=J_inv_T)
+                        self.A_h[2*node_i + d_i, 2*node_j + d_j] += A_i_di_j_dj
+                        self.A_h[2*node_j + d_j, 2*node_i + d_i] += A_i_di_j_dj
         
         # Convert A_h to csr-format for ease of calculations later:
         self.A_h = self.A_h.tocsr() 
-        
+    
+    def M_i_j(self, i_loc, j_loc, d_i, d_j, det_J_k):
+        """
+        Function calculating a (Mₕ)ᵢ,ⱼ-th contribution to the "Stiffness"-matrix. \n
+        i_loc: Local index of basis function. [0, 1, 2] \n
+        j_loc: Local index of basis function. [0, 1, 2] \n
+        d_i, d_j: Components of the vector function ϕ_i_d = [(1-d)*ϕ_i, d*ϕ_i]  \n
+        det_J_k: Determinant of the jacobian for 
+        """
+        # Only 36 interactions. 21 unique. Can calculate the 21 elements beforehand, and 
+        # insert the values det_J_k*M_ref for each element.
+
+        # d_i, d_j = [0, 1]:
+        # Dot product (ϕ_i)^T ⋅ ϕ_j = (1 - d_i)*(1 - d_j)ϕ_i*ϕ_j + (d_i)*(d_j)ϕ_i*ϕ_j.
+        if d_i != d_j:
+            return 0.0
+        phi_i, phi_j = self.basis_functions[i_loc], self.basis_functions[j_loc]
+
+        # As we integrate over the reference triangle, 
+        # we can use the basis function definitions directly:
+        integrand = lambda p: phi_i(p)*phi_j(p)
+        p1, p2, p3 = self.reference_triangle_nodes
+        I = quadrature2D(integrand, p1, p2, p3, Nq=self.quad_points)
+        return self.rho*I*det_J_k
+
+    def M_ref(self):
+        # TODO: Make the reference mass matrix M_ref. 
+        pass
+
+    def generate_M_h(self):
+        # Generate the mass matrix.
+        pass
+
     def generate_F_h(self):
         # TODO: UPDATE
         """
@@ -456,12 +548,21 @@ class Elasticity2DSolver():
         raise NotImplementedError
 
 
-def test_elasticity_solver():
-    # N, f, g_D, g_N, class_BC, E, nu,
-    model_dict = {"N": 20, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
+def test_elasticity_solver(N=5):
+    
+    def u(p):
+        temp = (p[0]**2 - 1)*(p[1]**2 - 1)
+        return np.array([temp, temp])
+
+    def u2(p):
+        return np.array([2*p[0] - 0.1*p[0]*p[1], p[1]**2 + 0.2*p[0]])
+
+    model_dict = {"N": N, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
                   "class_BC": 12.0, "E": 12.0, "nu": 0.22}
-    # a = Elasticity2DSolver(50, None, None, None, None, None, None)
     a = Elasticity2DSolver.from_dict(model_dict)
-    a.display_mesh(nodes=a.edge_nodes)
+    a.generate_A_h()
+    
+    # a.display_vector_field(u2, title="TESTING")
+    # a.display_mesh(nodes=a.edge_nodes)
 
     pass
