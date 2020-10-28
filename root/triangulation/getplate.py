@@ -12,13 +12,13 @@
 #   Author: Kjetil A. Johannessen, Abdullah Abdulhaque
 #   Last edit: October 2019
 
-print('__file__={0:<35} | __name__={1:<25} | __package__={2:<25}'.format(__file__,__name__,str(__package__)))
-
 import numpy as np
 import scipy.spatial as spsa
 
 
 def getPlate(N):
+    # BROKEN: Does not return correct edges!
+
     # Defining auxiliary variables.
     L = np.linspace(-1,1,N)
     Y,X = np.meshgrid(L,L)
@@ -34,28 +34,45 @@ def getPlate(N):
     # Generating elements.
     mesh = spsa.Delaunay(p)
     tri = mesh.simplices
+    
+    nodal_indices = np.arange(start=0, stop=N*N)
+    # Southern edge where y = -1.0
+
+    north_me = list(nodal_indices[[y ==  1.0 for (x, y) in p]])
+    south_me = list(nodal_indices[[y == -1.0 for (x, y) in p]])
+    west_me  = list(nodal_indices[[x == -1.0 for (x, y) in p]])
+    east_me  = list(nodal_indices[[x ==  1.0 for (x, y) in p]])
+    
+    edge_nodes = np.array(list(set(north_me + south_me + west_me + east_me)), dtype=int)
 
     # Generating nodal points on outer edge.
+    """
     south = np.array([np.arange(1,N),np.arange(2,N+1)])
     east = np.array([np.arange(N,N**2-N+1,N),np.arange(2*N,N**2+1,N)])
     north = np.array([np.arange(N**2,N**2-N+1,-1),np.arange(N**2-1,N**2-N,-1)])
     west = np.array([np.arange(N**2-N+1,N-1,-N),np.arange(N**2-2*N+1,0,-N)])
+
     L1 = np.shape(south)[1]
     L2 = np.shape(east)[1]
     L3 = np.shape(west)[1]
     L4 = np.shape(north)[1]
     edge = np.zeros((L1+L2+L3+L4,2),dtype=np.int)
+
     for i in range(0,L1):
         edge[i,0] = south[0,i]
         edge[i,1] = south[1,i]
+
     for i in range(L1,L1+L2):
         edge[i,0] = east[0,i-L1]
         edge[i,1] = east[1,i-L1]
+        
     for i in range(L1+L2,L1+L2+L3):
         edge[i,0] = north[0,i-L1-L2]
         edge[i,1] = north[1,i-L1-L2]
+
     for i in range(L1+L2+L3,L1+L2+L3+L4):
         edge[i,0] = west[0,i-L1-L2-L3]
         edge[i,1] = west[1,i-L1-L2-L3]
+    """
 
-    return p,tri,edge
+    return p, tri, edge_nodes

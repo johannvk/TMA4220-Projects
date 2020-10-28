@@ -50,7 +50,6 @@ class Poisson2DSolver():
         self.edge_triangles = list(self.triang[self.edge_triangle_indexes])
 
         self.num_nodes = N
-        self.num_unknowns = N - len(self.edge_nodes)
         self.quad_points = quad_points
         self.area = area  # A bit superfluous. 
 

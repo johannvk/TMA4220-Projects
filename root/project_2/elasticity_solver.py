@@ -1,5 +1,3 @@
-print('__file__={0:<35} | __name__={1:<25} | __package__={2:<25}'.format(__file__,__name__,str(__package__)))
-
 import numpy as np
 import scipy.linalg as la
 import scipy.sparse as sp
@@ -11,44 +9,46 @@ from ..tools import matprint, delete_from_csr, \
                     quadrature1D, quadrature2D, BCtype
 
 
-# from ..project_1.triangulation.getplate import getPlate
-# from ..project_1.fem_2d_solver import matprint, delete_from_csr
-# from ..project_1.gaussian_quad import quadrature1D, quadrature2D 
-
-
 class Elasticity2DSolver():
     """
-    2D-FEM solver of the Poisson equation:\n
-        -∆u(x, y) = f(x, y), (x, y) ∈ ℜ².
+    2D-FEM solver of the static equilibrium equation:\n
+        ∇ᵀσ(u) = -f, (x, y) ∈ Ω = [-1, 1]² \n
     \nUsing Linear basis function Polynomials.    
     """
-    
-    def __init__(self, N, f, g_D, g_N, class_BC, quad_points=4, area="plate", eps=1.0e-14):
+    def __init__(self, N, f, g_D, g_N, class_BC, E, nu,
+                 quad_points=4, area="plate", eps=1.0e-10):
         """
-        Initializer for 2D-FEM solver of the Poisson equation:\n
-        -∆u = f, (x, y) ∈ Ω \n
+        Initializer for 2D-FEM solver of the static equilibrium equation:\n
+            ∇ᵀσ(u) = -f, (x, y) ∈ Ω = [-1, 1]² \n
 
-        N: Number of nodes for the mesh.
+        N: sqrt(Number of nodes for the mesh).
         f: Source function.
+        E: Youngs modulus of your material.
+        nu: Poissons ratio for your material.
         g_D: Function g([x, y]) -> R, specifying Dirichlet boundary conditions.
         g_N: Function g([x, y]) -> R, specifying Neumann boundary conditions.
         class_BC: Function BC_type([x, y]) -> Bool, returning True if point [x, y] \n
                   should be a Dirichlet BC. Assumed Neumann if not. 
-        area: What geometry to solve the poisson equation on. Default: disc.
+        area: What geometry to solve the elasticity equation on. Default: "plate".
         """
         # Geometry setup:
         if area == "plate":
-            self.nodes, self.triang, self.edges = getPlate(N)
+            # We get incorrect edges out of 'getPlate()'. 
+            # Fixed to only get edge nodes now.
+            self.nodes, self.triang, self.edge_nodes = getPlate(N)
         else:
-            raise NotImplementedError("Ups, only support the 'disc' geometry.")
+            raise NotImplementedError("Ups, only support the 'plate' geometry.")
         
-        self.edge_nodes = self.edges[:, 0]
         self.edge_triangle_indexes = list(filter(lambda i: any((node in self.triang[i] for node in self.edge_nodes)), 
                                                  np.arange(len(self.triang))))
         self.edge_triangles = list(self.triang[self.edge_triangle_indexes])
 
-        self.num_nodes = N
-        self.num_unknowns = N - len(self.edge_nodes)
+        self.num_nodes = N*N
+
+        # Two basis functions for each node: 
+        # (ϕ_i_0 = [ϕ_i, 0], ϕ_i_1 = [0, ϕ_i]), i = 1, .., num_nodes.
+        self.num_basis_functions = 2*N*N  
+
         self.quad_points = quad_points
         self.area = area  # A bit superfluous. 
 
@@ -58,6 +58,9 @@ class Elasticity2DSolver():
         self.g_N = g_N
         self.class_BC = class_BC
         self.eps = eps  # Big-Number Epsilon.
+        
+        # Store the transformation matrix C: σ_vec = C @ ε_vec
+        self.C = (E/(1 - nu**2))*np.array([[1.0, nu, 0.0], [nu, 1.0, 0.0], [0.0, 0.0, (1 - nu)/2.0]])
 
         # Store which nodes are BCtype.Dir and their values:
         self.dirichlet_BC_mask = np.zeros(self.num_nodes, dtype=bool)
@@ -69,6 +72,9 @@ class Elasticity2DSolver():
 
         # Initialize the full Stiffness matrix to None before construction:
         self.A_h = None
+
+        # Initialize the full Mass matrix to None before construction:
+        self.M_h = None
 
         # Initialize the Source vector to None before construction:
         self.F_h = None
@@ -84,6 +90,10 @@ class Elasticity2DSolver():
 
         # Reference triangle:
         self.reference_triangle_nodes = (np.array([0.0, 0.0]), np.array([1.0, 0.0]), np.array([0.0, 1.0]))
+    
+    @classmethod
+    def from_dict(cls, model_dict):
+        return cls(**model_dict)
 
     def display_mesh(self, nodes=None, elements=None):
         if elements is None and nodes is None:
@@ -109,6 +119,8 @@ class Elasticity2DSolver():
             element_triang = self.triang[elements]
 
         plt.triplot(self.nodes[:, 0], self.nodes[:, 1], triangles=element_triang)
+        plt.xlim(-1.05, 1.05)
+        plt.ylim(-1.05, 1.05)
         plt.show()
 
     def generate_jacobian(self, element: int):
@@ -150,8 +162,29 @@ class Elasticity2DSolver():
         if J_inv is None:
             J_inv = la.inv(self.generate_jacobian(element))
         return J_inv @ (p - translation)
+     
+    def basis_func_eps_vec(self, i, d, k, J_inv_T=None):
+        """
+        Calculate the epsilon-vector for a basis-function:\n
+            ε(ϕ) = [∂ϕ₁/∂x, ∂ϕ₂/∂y, ∂ϕ₁/∂y + ∂ϕ₂/∂x],
+            ϕ = [ϕ₁, ϕ₂] = [(1-d)*ϕ_i, d*ϕ_i].\n
+        Based on transforming derivatives from the reference element.\n
+        i: Local basis function index. i = 0, 1, 2.\n
+        d: x- or y-component basis vector. {x: 0, y: 1}\n
+        k: Element number.
+        """
+        if J_inv_T is None:
+            J_inv_T = la.inv(self.generate_jacobian(k)).T
+        gradient = J_inv_T @ self.reference_gradients[i]
 
+        eps_xx = (1 - d)*gradient[0]
+        eps_yy = d*gradient[1]
+        eps_xy = d*gradient[0] + (1-d)*gradient[1]
+        
+        return np.array([eps_xx, eps_yy, eps_xy])
+     
     def A_i_j(self, i, j, J_inv_T, elem_area):
+        # TODO: UPDATE
         """
         Function calculating the (Aₕ)ᵢ,ⱼ-th element of the "Stiffness"-matrix.
         i: Local index of basis function. [0, 1, 2]
@@ -167,6 +200,7 @@ class Elasticity2DSolver():
         return elem_area * np.inner(grad_i, grad_j)
 
     def generate_A_h(self):
+        # TODO: UPDATE
         """
         Generate the Stiffness Matrix A_h, based on linear Langrange basis functions on triangles.
         """
@@ -197,6 +231,7 @@ class Elasticity2DSolver():
         self.A_h = self.A_h.tocsr() 
         
     def generate_F_h(self):
+        # TODO: UPDATE
         """
         Generate the source vector. Sum over elements and add contributions from each basis function.
         """
@@ -223,6 +258,7 @@ class Elasticity2DSolver():
         self.F_h = self.F_h.reshape(self.num_nodes, 1)
 
     def apply_big_number_dirichlet(self, eps=None):
+        # TODO: UPDATE
         """
         Apply pure Dirichlet boundary conditions to A_h and F_h 
         using the "Big Number"-approach.
@@ -249,6 +285,7 @@ class Elasticity2DSolver():
         self.applied_BC = True
 
     def apply_node_dirichlet_bc(self, node, p=None):
+        # TODO: UPDATE
         if p is None:
             p = self.nodes[node]
         dir_bc_value = self.g_D(p)
@@ -262,6 +299,7 @@ class Elasticity2DSolver():
         self.F_h -= self.A_h[:, node]*dir_bc_value
 
     def apply_direct_dirichlet(self):
+        # TODO: UPDATE
         # Dirichlet Boundary 
         for node in self.edge_nodes:
             p = self.nodes[node]
@@ -283,6 +321,7 @@ class Elasticity2DSolver():
         self.applied_BC = True
 
     def apply_boundary_conditions(self):
+        # TODO: UPDATE
         """
         Apply boundary conditions element-wise. Take care to avoid
         applying Dirichlet boundary conditions for a node more than once.
@@ -335,12 +374,14 @@ class Elasticity2DSolver():
         self.applied_BC = True
 
     def solve_big_number_dirichlet(self):
+        # TODO: UPDATE
         self.generate_A_h()
         self.generate_F_h()
         self.apply_big_number_dirichlet()
         self.u_h = sp.linalg.spsolve(self.A_h, self.F_h)
 
     def solve_direct_dirichlet(self):
+        # TODO: UPDATE
         self.generate_A_h()
         self.generate_F_h()
         self.apply_direct_dirichlet()
@@ -351,6 +392,7 @@ class Elasticity2DSolver():
         self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
 
     def solve(self):
+        # TODO: UPDATE
         self.generate_A_h()
         self.generate_F_h()
         self.apply_boundary_conditions()
@@ -361,6 +403,7 @@ class Elasticity2DSolver():
         self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
 
     def solve_direct_dirichlet_CG(self, TOL=1e-5):
+        # TODO: UPDATE
         self.generate_A_h()
         self.generate_F_h()
         self.apply_direct_dirichlet()
@@ -372,6 +415,7 @@ class Elasticity2DSolver():
         self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
 
     def error_est(self, u_ex, quad_points=None):
+        # TODO: UPDATE
         assert isinstance(self.u_h, np.ndarray)
 
         if quad_points == None:
@@ -411,3 +455,13 @@ class Elasticity2DSolver():
 
         raise NotImplementedError
 
+
+def test_elasticity_solver():
+    # N, f, g_D, g_N, class_BC, E, nu,
+    model_dict = {"N": 20, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
+                  "class_BC": 12.0, "E": 12.0, "nu": 0.22}
+    # a = Elasticity2DSolver(50, None, None, None, None, None, None)
+    a = Elasticity2DSolver.from_dict(model_dict)
+    a.display_mesh(nodes=a.edge_nodes)
+
+    pass
