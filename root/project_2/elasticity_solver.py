@@ -1,12 +1,16 @@
 import numpy as np
 import scipy.linalg as la
 import scipy.sparse as sp
+import scipy.sparse.linalg as spla
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.tri as mtri
 
-from ..triangulation.getplate import getPlate
+from itertools import product as iter_product
+
+from ..triangulation import getPlate, GetDisc
+
 from ..tools import matprint, delete_from_csr, \
                     quadrature1D, quadrature2D, BCtype
 
@@ -39,18 +43,21 @@ class Elasticity2DSolver():
             # We get incorrect edges out of 'getPlate()'. 
             # Fixed to only get edge nodes for now.
             self.nodes, self.triang, self.edge_nodes = getPlate(N)
+        elif area == "disc":
+            self.nodes, self.triang, edges = GetDisc(N)
+            self.edge_nodes = edges[:, 0]
         else:
-            raise NotImplementedError("Ups, only support the 'plate' geometry.")
+            raise NotImplementedError("Ups, only support the 'plate' and 'disc' geometry.")
         
         self.edge_triangle_indexes = list(filter(lambda i: any((node in self.triang[i] for node in self.edge_nodes)), 
                                                  np.arange(len(self.triang))))
         self.edge_triangles = list(self.triang[self.edge_triangle_indexes])
 
-        self.num_nodes = N*N
+        self.num_nodes = len(self.nodes)
 
         # Two basis functions for each node: 
         # (ϕ_i_0 = [ϕ_i, 0], ϕ_i_1 = [0, ϕ_i]), i = 1, .., num_nodes.
-        self.num_basis_functions = 2*N*N  
+        self.num_basis_functions = 2*self.num_nodes  
 
         self.quad_points = quad_points
         self.area = area  # A bit superfluous. 
@@ -104,7 +111,7 @@ class Elasticity2DSolver():
     def from_dict(cls, model_dict):
         return cls(**model_dict)
 
-    def display_mesh(self, nodes=None, elements=None):
+    def display_mesh(self, nodes=None, elements=None, displacement=None):
         if elements is None and nodes is None:
             element_triang = self.triang
 
@@ -116,22 +123,32 @@ class Elasticity2DSolver():
                 # Stupidly unreadable One-line solution:
                 triangle_indices = list(filter(lambda i: any((node in self.triang[i] for node in nodes)), 
                                                np.arange(len(self.triang))))
-                
-                # Old solution:
-                # triangle_indices = []
-                # for node in nodes:
-                #     triangle_indices += [i for i, triangle in enumerate(self.triang) if node in triangle]
 
             element_triang = self.triang[triangle_indices]
 
         else:
             element_triang = self.triang[elements]
         
-        plt.triplot(self.nodes[:, 0], self.nodes[:, 1], triangles=element_triang)
+        nodes_x = np.copy(self.nodes[:, 0])
+        nodes_y = np.copy(self.nodes[:, 1])
+
+        if displacement is not None:
+            # Apply displacement to each node:
+            assert(self.nodes.shape == displacement.shape)
+            nodes_x += displacement[:, 0]
+            nodes_y += displacement[:, 1]
+                        
+        plt.triplot(nodes_x, nodes_y, triangles=element_triang)
         
-        # TODO: Make x-lim, y-lim adaptive.
-        plt.xlim(-1.05, 1.05)
-        plt.ylim(-1.05, 1.05)
+        x_min, x_max = np.min(nodes_x), np.max(nodes_x)
+        y_min, y_max = np.min(nodes_y), np.max(nodes_y)
+        scale_x = abs(x_max - x_min)
+        scale_y = abs(y_max - y_min)
+
+        margin = 0.05
+        plt.xlim(x_min - margin*scale_x, x_max + margin*scale_x)
+        plt.ylim(y_min - margin*scale_y, y_max + margin*scale_y)
+
         plt.show()
 
     def display_vector_field(self, u, title=None):
@@ -296,7 +313,7 @@ class Elasticity2DSolver():
         i_loc: Local index of basis function. [0, 1, 2] \n
         j_loc: Local index of basis function. [0, 1, 2] \n
         d_i, d_j: Components of the vector function ϕ_i_d = [(1-d)*ϕ_i, d*ϕ_i]  \n
-        det_J_k: Determinant of the jacobian for 
+        det_J_k: Determinant of the jacobian for element k.
         """
         # Only 36 interactions. 21 unique. Can calculate the 21 elements beforehand, and 
         # insert the values det_J_k*M_ref for each element.
@@ -314,13 +331,82 @@ class Elasticity2DSolver():
         I = quadrature2D(integrand, p1, p2, p3, Nq=self.quad_points)
         return self.rho*I*det_J_k
 
-    def M_ref(self):
-        # TODO: Make the reference mass matrix M_ref. 
-        pass
+    def generate_M_ref(self):
+        # 36 interactions.
+        M_ref = np.zeros((6, 6), dtype=float)
+        local_indices = (0, 1, 2)
+        d_pairs = ((0, 0), (0, 1), (1, 0), (1, 1))
+        
+        for i, j, (d_i, d_j) in iter_product(local_indices, local_indices, d_pairs):
+            row, col = 2*i + d_i, 2*j + d_j
+            # Calculate the mass matrix on the reference element: det_J_k = 1.0
+            M_ref[row, col] = self.M_i_j(i, j, d_i, d_j, det_J_k=1.0)
+
+        return M_ref
 
     def generate_M_h(self):
+        
+        d_pairs = ((0, 0), (0, 1), (1, 0), (1, 1))
+        M_ref = self.generate_M_ref()
+
+        self.M_h = sp.dok_matrix((self.num_basis_functions, self.num_basis_functions))
+
         # Generate the mass matrix.
-        pass
+        for k, element in enumerate(self.triang):
+            
+            # TODO: Avoid generating all Jacobians twice for A_h and M_h.
+            J = self.generate_jacobian(k)
+            det_J_k = la.det(J)
+            
+            # Exploit symmetry of the (A_h)_sub-matrix about i=j.
+            # Only compute the upper-triangular part i <= j.
+    
+            for i_loc, node_i in enumerate(element):
+                # All values scaled by det_J_k compared to M_ref: 
+                
+                for (d_i, d_j) in d_pairs:
+                    i_i_value = det_J_k*M_ref[2*i_loc + d_i, 2*i_loc + d_j]
+                    self.M_h[2*node_i + d_i, 2*node_i + d_j] += i_i_value
+
+                for j_loc in range(i_loc+1, 3):
+                    node_j = element[j_loc]
+                    
+                    for (d_i, d_j) in d_pairs:
+                        i_j_value = det_J_k*M_ref[2*i_loc + d_i, 2*j_loc + d_j]
+
+                        self.M_h[2*node_i + d_i, 2*node_j + d_j] += i_j_value
+                        self.M_h[2*node_j + d_j, 2*node_i + d_i] += i_j_value
+
+        # Convert A_h to csr-format for ease of calculations later:
+        self.M_h = self.M_h.tocsr()
+
+    def solve_vibration_modes(self, num=20):
+        """
+        Find the 'num' lowest generalized eigenvalues, along with eigenvectors. \n
+            Aₕu = ω²Mₕu 
+        """
+        self.generate_A_h()
+        self.generate_M_h()
+
+        eigvals_small, eigvecs_small = spla.eigsh(A=self.A_h, M=self.M_h, 
+                                                  k=num, which="LM", sigma=0.0)
+        self.num_eigenpairs = num
+        self.vibration_frequencies = eigvals_small
+        self.vibration_eigenvectors = eigvecs_small        
+
+    def display_vibration_mode(self, k):
+        if k > self.num_eigenpairs - 1:
+            raise ValueError(f"Too high an eigen-number. Have only solved for {self.num_eigenpairs} eigenpairs.")
+        
+        # Eigenvectors stored column-wise:
+        vibration_eigenvec = self.vibration_eigenvectors[:, k]
+        
+        displacement_vec = np.zeros(self.nodes.shape)
+        
+        for n, d in iter_product(range(self.num_nodes), (0, 1)):
+            displacement_vec[n, d] = vibration_eigenvec[2*n + d]
+        
+        self.display_mesh(displacement=displacement_vec)
 
     def generate_F_h(self):
         # TODO: UPDATE
@@ -547,22 +633,3 @@ class Elasticity2DSolver():
 
         raise NotImplementedError
 
-
-def test_elasticity_solver(N=5):
-    
-    def u(p):
-        temp = (p[0]**2 - 1)*(p[1]**2 - 1)
-        return np.array([temp, temp])
-
-    def u2(p):
-        return np.array([2*p[0] - 0.1*p[0]*p[1], p[1]**2 + 0.2*p[0]])
-
-    model_dict = {"N": N, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
-                  "class_BC": 12.0, "E": 12.0, "nu": 0.22}
-    a = Elasticity2DSolver.from_dict(model_dict)
-    a.generate_A_h()
-    
-    # a.display_vector_field(u2, title="TESTING")
-    # a.display_mesh(nodes=a.edge_nodes)
-
-    pass
