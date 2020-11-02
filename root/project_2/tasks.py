@@ -15,9 +15,9 @@ def test_elasticity_solver(N=5, area="plate"):
     model_dict = {"N": N, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
                   "class_BC": 12.0, "E": 12.0, "nu": 0.22, "rho": 1.0, "area": area}
     a = Elasticity2DSolver.from_dict(model_dict)
-    a.solve_vibration_modes(num=100)
+    a.solve_vibration_modes(num=20)
 
-    # a.display_vibration_mode(k=0)
+    a.display_vibration_mode(k=0)
     # a.display_vibration_mode(k=4)
     
     # Skip first three "zero"-vibration frequencies:
