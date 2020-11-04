@@ -141,7 +141,7 @@ class Elasticity2DSolver():
             nodes_y += displacement[:, 1]
 
         if ax is not None:
-            plot = ax.triplot(nodes_x, nodes_y, triangles=element_triang)                        
+            plot = ax.triplot(nodes_x, nodes_y, triangles=element_triang, color='black')                        
         else:
             plot = plt.triplot(nodes_x, nodes_y, triangles=element_triang)
 
