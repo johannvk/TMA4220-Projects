@@ -76,7 +76,9 @@ class Elasticity2DSolver():
         self.eps = eps  # Big-Number Epsilon.
         
         # Store the transformation matrix C: σ_vec = C @ ε_vec
-        self.C = (E/(1 - nu**2))*np.array([[1.0, nu, 0.0], [nu, 1.0, 0.0], [0.0, 0.0, (1 - nu)/2.0]])
+        self.C = (E/(1 - nu**2)) * np.array([[1.0,  nu,          0.0],
+                                           [ nu, 1.0,          0.0],
+                                           [0.0, 0.0, (1 - nu)/2.0]])
 
         # Store which nodes are BCtype.Dir and their values:
         self.dirichlet_BC_mask = np.zeros(self.num_nodes, dtype=bool)
@@ -111,7 +113,7 @@ class Elasticity2DSolver():
     def from_dict(cls, model_dict):
         return cls(**model_dict)
 
-    def display_mesh(self, nodes=None, elements=None, displacement=None):
+    def display_mesh(self, nodes=None, elements=None, displacement=None, show=True, ax=None):
         if elements is None and nodes is None:
             element_triang = self.triang
 
@@ -137,19 +139,28 @@ class Elasticity2DSolver():
             assert(self.nodes.shape == displacement.shape)
             nodes_x += displacement[:, 0]
             nodes_y += displacement[:, 1]
-                        
-        plt.triplot(nodes_x, nodes_y, triangles=element_triang)
-        
-        x_min, x_max = np.min(nodes_x), np.max(nodes_x)
-        y_min, y_max = np.min(nodes_y), np.max(nodes_y)
-        scale_x = abs(x_max - x_min)
-        scale_y = abs(y_max - y_min)
 
-        margin = 0.05
-        plt.xlim(x_min - margin*scale_x, x_max + margin*scale_x)
-        plt.ylim(y_min - margin*scale_y, y_max + margin*scale_y)
+        if ax is not None:
+            plot = ax.triplot(nodes_x, nodes_y, triangles=element_triang)                        
+        else:
+            plot = plt.triplot(nodes_x, nodes_y, triangles=element_triang)
 
-        plt.show()
+        if show:
+
+            x_min, x_max = np.min(nodes_x), np.max(nodes_x)
+            y_min, y_max = np.min(nodes_y), np.max(nodes_y)
+            scale_x = abs(x_max - x_min)
+            scale_y = abs(y_max - y_min)
+
+            margin = 0.05
+            plt.xlim(x_min - margin*scale_x, x_max + margin*scale_x)
+            plt.ylim(y_min - margin*scale_y, y_max + margin*scale_y)
+
+            plt.show()
+
+        else:
+            return plot
+
 
     def display_vector_field(self, u, title=None):
         """
@@ -394,7 +405,7 @@ class Elasticity2DSolver():
         self.vibration_frequencies = eigvals_small
         self.vibration_eigenvectors = eigvecs_small        
 
-    def display_vibration_mode(self, k):
+    def display_vibration_mode(self, k, show=True, ax=None):
         if k > self.num_eigenpairs - 1:
             raise ValueError(f"Too high an eigen-number. Have only solved for {self.num_eigenpairs} eigenpairs.")
         
@@ -406,7 +417,7 @@ class Elasticity2DSolver():
         for n, d in iter_product(range(self.num_nodes), (0, 1)):
             displacement_vec[n, d] = vibration_eigenvec[2*n + d]
         
-        self.display_mesh(displacement=displacement_vec)
+        return self.display_mesh(displacement=displacement_vec, show=show, ax=ax)
 
     def generate_F_h(self):
         # TODO: UPDATE
