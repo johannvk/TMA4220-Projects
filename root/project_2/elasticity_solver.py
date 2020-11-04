@@ -405,7 +405,7 @@ class Elasticity2DSolver():
         self.vibration_frequencies = eigvals_small
         self.vibration_eigenvectors = eigvecs_small        
 
-    def display_vibration_mode(self, k, show=True, ax=None):
+    def display_vibration_mode(self, k):
         if k > self.num_eigenpairs - 1:
             raise ValueError(f"Too high an eigen-number. Have only solved for {self.num_eigenpairs} eigenpairs.")
         
@@ -417,7 +417,43 @@ class Elasticity2DSolver():
         for n, d in iter_product(range(self.num_nodes), (0, 1)):
             displacement_vec[n, d] = vibration_eigenvec[2*n + d]
         
-        return self.display_mesh(displacement=displacement_vec, show=show, ax=ax)
+        return self.display_mesh(displacement=displacement_vec)
+
+    def animate_vibration_mode(self, k, alpha=1, l=1, show=None, savename=None, playtime=5, fps=60, repeat_delay=0):
+        if k > self.num_eigenpairs - 1:
+            raise ValueError(f"Too high an eigen-number. Have only solved for {self.num_eigenpairs} eigenpairs.")
+
+        from matplotlib.animation import ArtistAnimation
+
+        vibration_eigenvec = self.vibration_eigenvectors[:, k]
+        
+        displacement_vec = np.zeros(self.nodes.shape)
+        
+        for n, d in iter_product(range(self.num_nodes), (0, 1)):
+            displacement_vec[n, d] = vibration_eigenvec[2*n + d]
+
+        N_frames = playtime * fps
+        ts = np.linspace(0, 2*np.pi, N_frames)
+        disp_vecs = [alpha * np.sin(l*t) * displacement_vec for t in ts]
+
+        fig, ax = plt.subplots()
+
+        artists = [self.display_mesh(displacement=disp_vecs[i], show=False, ax=ax) for i in range(N_frames)]
+
+        ani = ArtistAnimation(fig, artists, interval=1000//fps, repeat_delay=repeat_delay, repeat=True, blit=True)
+
+        if savename is not None:
+            ani.save(f"{savename}.mp4")
+
+        if show is None:
+            if savename is None:
+                show = True
+            else:
+                show = False
+        
+        if show:
+            plt.show()
+
 
     def generate_F_h(self):
         # TODO: UPDATE

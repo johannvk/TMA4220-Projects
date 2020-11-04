@@ -1,8 +1,7 @@
 from .project_1.tasks import run_tasks as run_task_1
 from .project_1.tests import test_main
-from .project_2.tasks import test_elasticity_solver
+from .project_2.tasks import test_elasticity_solver, test_animation
 
-from .project_2.animation import test_animation
 
 def main():
     print("The best FEM package there is!")
