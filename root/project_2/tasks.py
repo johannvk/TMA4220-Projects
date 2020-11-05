@@ -41,7 +41,7 @@ def test_animation(N=20, area="plate"):
     solver = Elasticity2DSolver.from_dict(model_dict)
     solver.solve_vibration_modes(num=10)
 
-    solver.animate_vibration_mode(9, alpha=0.1, l=2, savename="animationtest")
+    solver.animate_vibration_mode(9, alpha=0.03, l=20, savename="test_best")
 
     return
 

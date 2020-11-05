@@ -443,7 +443,7 @@ class Elasticity2DSolver():
         ani = ArtistAnimation(fig, artists, interval=1000//fps, repeat_delay=repeat_delay, repeat=True, blit=True)
 
         if savename is not None:
-            ani.save(f"{savename}.mp4")
+            ani.save(f"root/project_2/animations/{savename}.mp4")
 
         if show is None:
             if savename is None:

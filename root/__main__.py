@@ -7,7 +7,7 @@ def main():
     print("The best FEM package there is!")
     # run_task_1()
     # test_main()
-    test_elasticity_solver(N=10, area="plate")
+    # test_elasticity_solver(N=10, area="plate")
     # test_elasticity_solver(N=25, area="plate")
     test_animation()
 
