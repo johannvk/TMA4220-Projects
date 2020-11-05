@@ -128,3 +128,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 # .vscode/launch.json  # Makes it easier for all who use VScode to start the project correctly. 
+
+*.mp4
