@@ -190,17 +190,25 @@ class Elasticity2DSolver():
             nodes_y += displacement[:, 1]
 
         if face_colors is None:
-            xmid = nodes_x[element_triang].mean(axis=1)
-            ymid = nodes_y[element_triang].mean(axis=1)
-            zcolors = xmid**2 + ymid**2
-            #raise NotImplementedError
+            zcolors = np.zeros(len(element_triang), dtype=float)
+            
+            for k, el in enumerate(element_triang):
+
+                sigma_0 = self.sigma_vec(0, displacement[el[0],:], k=k)
+                sigma_1 = self.sigma_vec(1, displacement[el[1],:], k=k)
+                sigma_2 = self.sigma_vec(2, displacement[el[2],:], k=k)
+
+                mts0 = 0.5 * ( sigma_0[0] + sigma_0[1])
+                mts1 = 0.5 * ( sigma_1[0] + sigma_1[1])
+                mts2 = 0.5 * ( sigma_2[0] + sigma_2[1])
+
+                zcolors[k] = ( mts0 + mts1 + mts2 ) / 3
 
         if ax is not None:
-            #plot = ax.triplot(nodes_x, nodes_y, triangles=element_triang, color='black')
             plot = ax.tripcolor(nodes_x, nodes_y, triangles=element_triang, facecolors=zcolors, edgecolors='k')
         else:
-            #plot = plt.triplot(nodes_x, nodes_y, triangles=element_triang)
             plot = plt.tripcolor(nodes_x, nodes_y, triangles=element_triang, facecolors=zcolors, edgecolors='k')
+            plt.colorbar(plot)
 
         if show:
 
@@ -319,11 +327,10 @@ class Elasticity2DSolver():
         
         return np.array([eps_xx, eps_yy, eps_xy])
 
-    def simga_vec(self, node: int, i: int, disp_vec, J_inv_T=None, k=None):
+    def sigma_vec(self, i: int, disp_vec, J_inv_T=None, k=None):
         """
         Calculate sigma-components [σ_xx, σ_yy, σ_xy]
         at the node index. 
-        node:     Global index
         i:        Local basis function index.
         disp_vec: Displacement of each component of the basis functions. np.array([u_1, u_2]).
         """
