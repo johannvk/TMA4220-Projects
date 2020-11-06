@@ -161,6 +161,62 @@ class Elasticity2DSolver():
         else:
             return plot
 
+    def display_mesh_stress(self, nodes=None, elements=None, displacement=None, face_colors=None, show=True, ax=None):
+
+        if elements is None and nodes is None:
+            element_triang = self.triang
+
+        elif nodes is not None:
+            # Find all triangles with nodes-elements as vertices.
+            if type(nodes) is int:
+                triangle_indices = [i for i, triangle in enumerate(self.triang) if nodes in triangle] 
+            else:
+                # Stupidly unreadable One-line solution:
+                triangle_indices = list(filter(lambda i: any((node in self.triang[i] for node in nodes)), 
+                                               np.arange(len(self.triang))))
+
+            element_triang = self.triang[triangle_indices]
+
+        else:
+            element_triang = self.triang[elements]
+        
+        nodes_x = np.copy(self.nodes[:, 0])
+        nodes_y = np.copy(self.nodes[:, 1])
+
+        if displacement is not None:
+            # Apply displacement to each node:
+            assert(self.nodes.shape == displacement.shape)
+            nodes_x += displacement[:, 0]
+            nodes_y += displacement[:, 1]
+
+        if face_colors is None:
+            xmid = nodes_x[element_triang].mean(axis=1)
+            ymid = nodes_y[element_triang].mean(axis=1)
+            zcolors = xmid**2 + ymid**2
+            #raise NotImplementedError
+
+        if ax is not None:
+            #plot = ax.triplot(nodes_x, nodes_y, triangles=element_triang, color='black')
+            plot = ax.tripcolor(nodes_x, nodes_y, triangles=element_triang, facecolors=zcolors, edgecolors='k')
+        else:
+            #plot = plt.triplot(nodes_x, nodes_y, triangles=element_triang)
+            plot = plt.tripcolor(nodes_x, nodes_y, triangles=element_triang, facecolors=zcolors, edgecolors='k')
+
+        if show:
+
+            x_min, x_max = np.min(nodes_x), np.max(nodes_x)
+            y_min, y_max = np.min(nodes_y), np.max(nodes_y)
+            scale_x = abs(x_max - x_min)
+            scale_y = abs(y_max - y_min)
+
+            margin = 0.05
+            plt.xlim(x_min - margin*scale_x, x_max + margin*scale_x)
+            plt.ylim(y_min - margin*scale_y, y_max + margin*scale_y)
+
+            plt.show()
+
+        else:
+            return plot
 
     def display_vector_field(self, u, title=None):
         """
@@ -453,6 +509,15 @@ class Elasticity2DSolver():
         
         if show:
             plt.show()
+
+    def animate_vibration_mode_stress(self, k, alpha=1, l=1, show=None, savename=None, playtime=5, fps=60, repeat_delay=0):
+
+
+
+
+
+
+        return
 
 
     def generate_F_h(self):
