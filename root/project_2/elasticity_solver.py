@@ -587,7 +587,8 @@ class Elasticity2DSolver():
         if show:
             plt.show()
 
-    def animate_vibration_mode_stress(self, k, alpha=1, l=1, show=None, savename=None, playtime=5, fps=60, repeat_delay=0):
+    def animate_vibration_mode_stress(self, k, alpha=1, l=1, show=None, savename=None, 
+                                      playtime=5, fps=60, repeat_delay=0, title=None):
         if k > self.num_eigenpairs - 1:
             raise ValueError(f"Too high an eigen-number. Have only solved for {self.num_eigenpairs} eigenpairs.")
 
@@ -599,14 +600,30 @@ class Elasticity2DSolver():
 
         max_stretch = self.find_max_stress(displacement=displacement_vec*alpha)
 
+        # Set a bigger font size for text:
+        plt.rcParams.update({'font.size': 20})
         norm = mpl.colors.Normalize(vmin=-max_stretch, vmax=max_stretch)
 
         fig, ax = plt.subplots(figsize=(1.5*16,1.5*9))
+        
+        plt.subplots_adjust(left=0.05, bottom=0.05, right=0.99, top=0.94)
+        ax.set_xlabel("x [m]")
+        ax.set_ylabel("y [m]")
+
+        if title is None:
+            fig.suptitle(f"Vibration mode {k} for {self.area} with {len(self.triang)} Elements")
+        elif type(title) is str:
+            fig.suptitle(title)
+        else:
+            pass
 
         artists = [self.display_mesh_stress(displacement=disp_vecs[i], norm=norm, show=False, ax=ax).findobj() for i in range(N_frames)]
 
         ani = ArtistAnimation(fig, artists, interval=1000//fps, repeat_delay=repeat_delay, repeat=True, blit=True)
-        fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=None), ax=ax)
+        cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=None), ax=ax)
+        cbar.ax.get_yaxis().labelpad = 50
+        # cbar.ax.set_ylabel('# of contacts', rotation=270)
+        cbar.set_label(r"Mean Total Stress $\sigma$ [Pa]", rotation=270, fontsize=24)
 
         if savename is not None:
             ani.save(f"root/project_2/animations/{savename}.mp4")
