@@ -628,12 +628,7 @@ class Elasticity2DSolver():
         if show:
             plt.show()
 
-
-
-
-
         return
-
 
     def generate_F_h(self):
         # TODO: UPDATE
