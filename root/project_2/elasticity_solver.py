@@ -6,6 +6,7 @@ import scipy.sparse.linalg as spla
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.tri as mtri
+from matplotlib.animation import ArtistAnimation
 
 from itertools import product as iter_product
 
@@ -533,35 +534,33 @@ class Elasticity2DSolver():
                                                   k=num, which="LM", sigma=0.0)
         self.num_eigenpairs = num
         self.vibration_frequencies = eigvals_small
-        self.vibration_eigenvectors = eigvecs_small        
+
+        # List of the displacement eigenvectors for each eigenvalue: 
+        self.vibration_eigenvectors = []
+        for k in range(num):
+            displacement_vec = np.zeros(self.nodes.shape)
+    
+            # Eigenvectors stored column-wise:
+            vibration_eigenvec = eigvecs_small[:, k]
+            
+            for n, d in iter_product(range(self.num_nodes), (0, 1)):
+                displacement_vec[n, d] = vibration_eigenvec[2*n + d]
+            
+            self.vibration_eigenvectors.append(displacement_vec)
+ 
+        print("Done solving for eigenmodes!")
 
     def display_vibration_mode(self, k):
         if k > self.num_eigenpairs - 1:
             raise ValueError(f"Too high an eigen-number. Have only solved for {self.num_eigenpairs} eigenpairs.")
         
-        # Eigenvectors stored column-wise:
-        vibration_eigenvec = self.vibration_eigenvectors[:, k]
-        
-        displacement_vec = np.zeros(self.nodes.shape)
-        
-        for n, d in iter_product(range(self.num_nodes), (0, 1)):
-            displacement_vec[n, d] = vibration_eigenvec[2*n + d]
-        
-        return self.display_mesh(displacement=displacement_vec)
+        return self.display_mesh(displacement=self.vibration_eigenvectors[k])
 
     def animate_vibration_mode(self, k, alpha=1, l=1, show=None, savename=None, playtime=5, fps=60, repeat_delay=0, title=None):
         if k > self.num_eigenpairs - 1:
             raise ValueError(f"Too high an eigen-number. Have only solved for {self.num_eigenpairs} eigenpairs.")
 
-        from matplotlib.animation import ArtistAnimation
-
-        vibration_eigenvec = self.vibration_eigenvectors[:, k]
-        
-        displacement_vec = np.zeros(self.nodes.shape)
-        
-        for n, d in iter_product(range(self.num_nodes), (0, 1)):
-            displacement_vec[n, d] = vibration_eigenvec[2*n + d]
-
+        displacement_vec = self.vibration_eigenvectors[k]
         N_frames = playtime * fps
         ts = np.linspace(0, 2*np.pi, N_frames)
         disp_vecs = [alpha * np.sin(l*t) * displacement_vec for t in ts]
@@ -592,14 +591,7 @@ class Elasticity2DSolver():
         if k > self.num_eigenpairs - 1:
             raise ValueError(f"Too high an eigen-number. Have only solved for {self.num_eigenpairs} eigenpairs.")
 
-        from matplotlib.animation import ArtistAnimation
-
-        vibration_eigenvec = self.vibration_eigenvectors[:, k]
-        
-        displacement_vec = np.zeros(self.nodes.shape)
-        
-        for n, d in iter_product(range(self.num_nodes), (0, 1)):
-            displacement_vec[n, d] = vibration_eigenvec[2*n + d]
+        displacement_vec = self.vibration_eigenvectors[k]
 
         N_frames = playtime * fps
         ts = np.linspace(0, 2*np.pi, N_frames)
