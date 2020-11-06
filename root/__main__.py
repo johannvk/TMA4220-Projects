@@ -9,7 +9,7 @@ def main():
     # test_main()
     # test_elasticity_solver(N=10, area="plate")
     # test_elasticity_solver(N=25, area="plate")
-    test_animation()
+    test_animation(mode=10)
 
     pass
 

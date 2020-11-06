@@ -419,7 +419,7 @@ class Elasticity2DSolver():
         
         return self.display_mesh(displacement=displacement_vec)
 
-    def animate_vibration_mode(self, k, alpha=1, l=1, show=None, savename=None, playtime=5, fps=60, repeat_delay=0):
+    def animate_vibration_mode(self, k, alpha=1, l=1, show=None, savename=None, playtime=5, fps=60, repeat_delay=0, title=None):
         if k > self.num_eigenpairs - 1:
             raise ValueError(f"Too high an eigen-number. Have only solved for {self.num_eigenpairs} eigenpairs.")
 
@@ -437,6 +437,10 @@ class Elasticity2DSolver():
         disp_vecs = [alpha * np.sin(l*t) * displacement_vec for t in ts]
 
         fig, ax = plt.subplots()
+        if title is None:
+            fig.suptitle(f"Eigen vibration mode {k}", fontsize=18)
+        else:
+            fig.suptitle(title, fontsize=18)
 
         artists = [self.display_mesh(displacement=disp_vecs[i], show=False, ax=ax) for i in range(N_frames)]
 
