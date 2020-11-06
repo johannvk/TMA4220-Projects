@@ -66,3 +66,23 @@ def test_animation(N=20, area="plate", mode=5):
     print("What?!")
     return
 
+def test_animate_mesh_stress(N=6, area="plate"):
+    from itertools import product as iter_product
+
+    model_dict = {"N": N, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
+                  "class_BC": 12.0, "E": 12.0, "nu": 0.22, "rho": 1.0, "area": area}
+    solver = Elasticity2DSolver.from_dict(model_dict)
+    solver.solve_vibration_modes(num=N)
+
+    k = N//2
+
+    vibration_eigenvec = solver.vibration_eigenvectors[:, k]
+        
+    displacement_vec = np.zeros(solver.nodes.shape)
+    
+    for n, d in iter_product(range(solver.num_nodes), (0, 1)):
+        displacement_vec[n, d] = vibration_eigenvec[2*n + d]
+
+    solver.animate_vibration_mode_stress(k=k, alpha=0.05, l=3)
+
+    return
