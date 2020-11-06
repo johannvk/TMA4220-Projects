@@ -45,7 +45,7 @@ def test_animation(N=20, area="plate"):
 
     return
 
-def test_display_mesh_stress(N=10, area="plate"):
+def test_display_mesh_stress(N=6, area="plate"):
     from itertools import product as iter_product
 
     model_dict = {"N": N, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
@@ -62,9 +62,12 @@ def test_display_mesh_stress(N=10, area="plate"):
     for n, d in iter_product(range(solver.num_nodes), (0, 1)):
         displacement_vec[n, d] = vibration_eigenvec[2*n + d]
 
-    #disp_vec = solver.vibration_eigenvectors[0] * 0 - 0.2
 
-    solver.display_mesh_stress(displacement=displacement_vec * 0.05)
+    fig, ax = plt.subplots()
+
+    #plot = solver.display_mesh_stress(displacement=displacement_vec * 0.05, show=False, ax=ax)
+
+    solver.animate_vibration_mode_stress(k=4, alpha=0.2, l=3)
 
     return
 
