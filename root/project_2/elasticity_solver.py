@@ -161,6 +161,71 @@ class Elasticity2DSolver():
         else:
             return plot
 
+    def display_mesh_stress(self, nodes=None, elements=None, displacement=None, face_colors=None, norm=None, show=True, ax=None):
+
+        if elements is None and nodes is None:
+            element_triang = self.triang
+
+        elif nodes is not None:
+            # Find all triangles with nodes-elements as vertices.
+            if type(nodes) is int:
+                triangle_indices = [i for i, triangle in enumerate(self.triang) if nodes in triangle] 
+            else:
+                # Stupidly unreadable One-line solution:
+                triangle_indices = list(filter(lambda i: any((node in self.triang[i] for node in nodes)), 
+                                               np.arange(len(self.triang))))
+
+            element_triang = self.triang[triangle_indices]
+
+        else:
+            element_triang = self.triang[elements]
+        
+        nodes_x = np.copy(self.nodes[:, 0])
+        nodes_y = np.copy(self.nodes[:, 1])
+
+        if displacement is not None:
+            # Apply displacement to each node:
+            assert(self.nodes.shape == displacement.shape)
+            nodes_x += displacement[:, 0]
+            nodes_y += displacement[:, 1]
+
+        if face_colors is None:
+            zcolors = np.zeros(len(element_triang), dtype=float)
+
+            for k, el in enumerate(element_triang):
+
+                sigma_0 = self.sigma_vec(0, displacement[el[0],:], k=k)
+                sigma_1 = self.sigma_vec(1, displacement[el[1],:], k=k)
+                sigma_2 = self.sigma_vec(2, displacement[el[2],:], k=k)
+
+                mts0 = 0.5 * ( sigma_0[0] + sigma_0[1])
+                mts1 = 0.5 * ( sigma_1[0] + sigma_1[1])
+                mts2 = 0.5 * ( sigma_2[0] + sigma_2[1])
+
+                zcolors[k] = ( mts0 + mts1 + mts2 ) / 3
+
+        if ax is not None:
+            plot = ax.tripcolor(nodes_x, nodes_y, triangles=element_triang, facecolors=zcolors, edgecolors='k', norm=norm)
+        else:
+            plot = plt.tripcolor(nodes_x, nodes_y, triangles=element_triang, facecolors=zcolors, edgecolors='k', norm=norm)
+            plt.colorbar(plot)
+
+        if show:
+
+            x_min, x_max = np.min(nodes_x), np.max(nodes_x)
+            y_min, y_max = np.min(nodes_y), np.max(nodes_y)
+            scale_x = abs(x_max - x_min)
+            scale_y = abs(y_max - y_min)
+
+            margin = 0.05
+            plt.xlim(x_min - margin*scale_x, x_max + margin*scale_x)
+            plt.ylim(y_min - margin*scale_y, y_max + margin*scale_y)
+
+            plt.show()
+
+        else:
+            return plot
+
     def display_vector_field(self, u, title=None):
         """
         Display a vector field over the domain Ω.\n
@@ -261,7 +326,73 @@ class Elasticity2DSolver():
         eps_xy = d*gradient[0] + (1-d)*gradient[1]
         
         return np.array([eps_xx, eps_yy, eps_xy])
-     
+
+    def sigma_vec(self, i: int, disp_vec, J_inv_T=None, k=None):
+        """
+        Calculate sigma-components [σ_xx, σ_yy, σ_xy]
+        at the node index. 
+        i:        Local basis function index.
+        disp_vec: Displacement of each component of the basis functions. np.array([u_1, u_2]).
+        """
+        # Slow extra checking. Might be removed. 
+        if J_inv_T is not None:
+            pass
+        elif J_inv_T is None and type(k) is int:
+            J_inv_T = la.inv(self.generate_jacobian(k)).T
+        else:
+            raise ValueError("Either the inverse-Jacobian transpose 'J_int_T' or element number 'k' must be given.")
+
+        eps_vec_0 = disp_vec[0]*self.basis_func_eps_vec(i, d=0, J_inv_T=J_inv_T)
+        eps_vec_1 = disp_vec[1]*self.basis_func_eps_vec(i, d=1, J_inv_T=J_inv_T)
+        sigma_vec = self.C @ (eps_vec_0 + eps_vec_1)
+        return sigma_vec
+
+    def find_max_stress(self, nodes=None, elements=None, displacement=None):
+
+        if elements is None and nodes is None:
+            element_triang = self.triang
+
+        elif nodes is not None:
+            # Find all triangles with nodes-elements as vertices.
+            if type(nodes) is int:
+                triangle_indices = [i for i, triangle in enumerate(self.triang) if nodes in triangle] 
+            else:
+                # Stupidly unreadable One-line solution:
+                triangle_indices = list(filter(lambda i: any((node in self.triang[i] for node in nodes)), 
+                                               np.arange(len(self.triang))))
+
+            element_triang = self.triang[triangle_indices]
+
+        else:
+            element_triang = self.triang[elements]
+        
+        nodes_x = np.copy(self.nodes[:, 0])
+        nodes_y = np.copy(self.nodes[:, 1])
+
+        if displacement is not None:
+            # Apply displacement to each node:
+            assert(self.nodes.shape == displacement.shape)
+            nodes_x += displacement[:, 0]
+            nodes_y += displacement[:, 1]
+        
+        max_stress = 0
+
+        for k, el in enumerate(element_triang):
+
+            sigma_0 = self.sigma_vec(0, displacement[el[0],:], k=k)
+            sigma_1 = self.sigma_vec(1, displacement[el[1],:], k=k)
+            sigma_2 = self.sigma_vec(2, displacement[el[2],:], k=k)
+
+            mts0 = 0.5 * ( sigma_0[0] + sigma_0[1])
+            mts1 = 0.5 * ( sigma_1[0] + sigma_1[1])
+            mts2 = 0.5 * ( sigma_2[0] + sigma_2[1])
+
+            mts_el = ( mts0 + mts1 + mts2 ) / 3
+            if np.abs(mts_el) > max_stress:
+                max_stress = np.abs(mts_el)
+
+        return  max_stress
+
     def A_i_j(self, i_loc, j_loc, d_i, d_j, A_k, J_inv_T):
         """
         Function calculating a (Aₕ)ᵢ,ⱼ-th contribution to the "Stiffness"-matrix.
@@ -456,6 +587,48 @@ class Elasticity2DSolver():
         
         if show:
             plt.show()
+
+    def animate_vibration_mode_stress(self, k, alpha=1, l=1, show=None, savename=None, playtime=5, fps=60, repeat_delay=0):
+        if k > self.num_eigenpairs - 1:
+            raise ValueError(f"Too high an eigen-number. Have only solved for {self.num_eigenpairs} eigenpairs.")
+
+        from matplotlib.animation import ArtistAnimation
+
+        vibration_eigenvec = self.vibration_eigenvectors[:, k]
+        
+        displacement_vec = np.zeros(self.nodes.shape)
+        
+        for n, d in iter_product(range(self.num_nodes), (0, 1)):
+            displacement_vec[n, d] = vibration_eigenvec[2*n + d]
+
+        N_frames = playtime * fps
+        ts = np.linspace(0, 2*np.pi, N_frames)
+        disp_vecs = [alpha * np.sin(l*t) * displacement_vec for t in ts]
+
+        max_stretch = self.find_max_stress(displacement=displacement_vec*alpha)
+
+        norm = mpl.colors.Normalize(vmin=-max_stretch, vmax=max_stretch)
+
+        fig, ax = plt.subplots()
+
+        artists = [self.display_mesh_stress(displacement=disp_vecs[i], norm=norm, show=False, ax=ax).findobj() for i in range(N_frames)]
+
+        ani = ArtistAnimation(fig, artists, interval=1000//fps, repeat_delay=repeat_delay, repeat=True, blit=True)
+        fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=None), ax=ax)
+
+        if savename is not None:
+            ani.save(f"{savename}.mp4")
+
+        if show is None:
+            if savename is None:
+                show = True
+            else:
+                show = False
+        
+        if show:
+            plt.show()
+
+        return
 
     def generate_F_h(self):
         # TODO: UPDATE

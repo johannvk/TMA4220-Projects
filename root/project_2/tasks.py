@@ -54,7 +54,7 @@ def steel_animation(N=10, area="plate", mode=5, max_modes=20):
                   "class_BC": None, "E": 193.0e9, "nu": 0.305, "rho": 79.3e1, "area": area}
     steel_solver = Elasticity2DSolver.from_dict(steel_plate)
     steel_solver.solve_vibration_modes(num=max_modes)
-    steel_solver.animate_vibration_mode(mode, alpha=1.0, l=5, savename=None, title="Steel Plate")
+    steel_solver.animate_vibration_mode_stress(mode, alpha=1.0, l=5, savename=None)
 
 
 def aluminium_animation(N=10, area="plate", mode=5, max_modes=20):
@@ -67,7 +67,7 @@ def aluminium_animation(N=10, area="plate", mode=5, max_modes=20):
                 "class_BC": None, "E": 69.0e9, "nu": 0.35, "rho": 2.7e1, "area": area}
     alu_solver = Elasticity2DSolver.from_dict(alu_plate)
     alu_solver.solve_vibration_modes(num=max_modes)
-    alu_solver.animate_vibration_mode(mode, alpha=1.0, l=5, savename=None, title="Aluminium Plate")
+    alu_solver.animate_vibration_mode_stress(mode, alpha=1.0, l=5, savename=None)
 
 
 def timber_animation(N=10, area="plate", mode=5, max_modes=20):
@@ -79,4 +79,26 @@ def timber_animation(N=10, area="plate", mode=5, max_modes=20):
                 "class_BC": None, "E": 12.9e9, "nu": 0.276, "rho": 5.2e0, "area": area}
     timber_solver = Elasticity2DSolver.from_dict(timber_plate)
     timber_solver.solve_vibration_modes(num=max_modes)
-    timber_solver.animate_vibration_mode(mode, alpha=1.0, l=5, savename=None, title="Timber")
+    timber_solver.animate_vibration_mode_stress(mode, alpha=1.0, l=5, savename=None)
+
+
+def test_animate_mesh_stress(N=6, area="plate"):
+    from itertools import product as iter_product
+
+    model_dict = {"N": N, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
+                  "class_BC": 12.0, "E": 12.0, "nu": 0.22, "rho": 1.0, "area": area}
+    solver = Elasticity2DSolver.from_dict(model_dict)
+    solver.solve_vibration_modes(num=N)
+
+    k = N//2
+
+    vibration_eigenvec = solver.vibration_eigenvectors[:, k]
+        
+    displacement_vec = np.zeros(solver.nodes.shape)
+    
+    for n, d in iter_product(range(solver.num_nodes), (0, 1)):
+        displacement_vec[n, d] = vibration_eigenvec[2*n + d]
+
+    solver.animate_vibration_mode_stress(k=k, alpha=0.05, l=3)
+
+    return
