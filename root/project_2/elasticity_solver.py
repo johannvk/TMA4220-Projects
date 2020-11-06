@@ -161,7 +161,6 @@ class Elasticity2DSolver():
         else:
             return plot
 
-
     def display_vector_field(self, u, title=None):
         """
         Display a vector field over the domain Ω.\n
@@ -457,7 +456,6 @@ class Elasticity2DSolver():
         
         if show:
             plt.show()
-
 
     def generate_F_h(self):
         # TODO: UPDATE
