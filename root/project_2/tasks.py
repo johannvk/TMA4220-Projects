@@ -51,9 +51,9 @@ def test_display_mesh_stress(N=6, area="plate"):
     model_dict = {"N": N, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
                   "class_BC": 12.0, "E": 12.0, "nu": 0.22, "rho": 1.0, "area": area}
     solver = Elasticity2DSolver.from_dict(model_dict)
-    solver.solve_vibration_modes(num=10)
+    solver.solve_vibration_modes(num=N)
 
-    k = 4
+    k = N//2
 
     vibration_eigenvec = solver.vibration_eigenvectors[:, k]
         
@@ -62,12 +62,7 @@ def test_display_mesh_stress(N=6, area="plate"):
     for n, d in iter_product(range(solver.num_nodes), (0, 1)):
         displacement_vec[n, d] = vibration_eigenvec[2*n + d]
 
-
-    fig, ax = plt.subplots()
-
-    #plot = solver.display_mesh_stress(displacement=displacement_vec * 0.05, show=False, ax=ax)
-
-    solver.animate_vibration_mode_stress(k=4, alpha=0.2, l=3)
+    solver.animate_vibration_mode_stress(k=k, alpha=0.05, l=3)
 
     return
 

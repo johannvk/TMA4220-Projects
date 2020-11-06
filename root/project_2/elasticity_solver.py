@@ -610,6 +610,7 @@ class Elasticity2DSolver():
         artists = [self.display_mesh_stress(displacement=disp_vecs[i], norm=norm, show=False, ax=ax).findobj() for i in range(N_frames)]
 
         ani = ArtistAnimation(fig, artists, interval=1000//fps, repeat_delay=repeat_delay, repeat=True, blit=True)
+        fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=None), ax=ax)
 
         if savename is not None:
             ani.save(f"{savename}.mp4")
