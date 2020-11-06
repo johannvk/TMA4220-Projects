@@ -10,56 +10,12 @@ from mpl_toolkits.mplot3d import Axes3D
 
 
 # Mesh generation code from lecturers:
-from triangulation.getdisc import GetDisc
+from ..triangulation.getdisc import GetDisc
 
-# Our Gaussian-quadrature-code:
-from gaussian_quad import quadrature1D, quadrature2D, triangle_area
-
-
-def matprint(mat, fmt="g"):
-    col_maxes = [max([len(("{:"+fmt+"}").format(x)) for x in col]) for col in mat.T]
-    for x in mat:
-        for i, y in enumerate(x):
-            print(("{:"+str(col_maxes[i])+fmt+"}").format(y), end="  ")
-        print("")
-
-
-def delete_from_csr(mat, row_indices=[], col_indices=[]):
-    """
-    Remove the rows (denoted by ``row_indices``) and columns (denoted by ``col_indices``) from the CSR sparse matrix ``mat``.
-    WARNING: Indices of altered axes are reset in the returned matrix
-    """
-    if not isinstance(mat, sp.csr_matrix):
-        raise ValueError("works only for CSR format -- use .tocsr() first")
-
-    rows = []
-    cols = []
-    if row_indices:
-        rows = list(row_indices)
-    if col_indices:
-        cols = list(col_indices)
-
-    if len(rows) > 0 and len(cols) > 0:
-        row_mask = np.ones(mat.shape[0], dtype=bool)
-        row_mask[rows] = False
-        col_mask = np.ones(mat.shape[1], dtype=bool)
-        col_mask[cols] = False
-        return mat[row_mask][:,col_mask]
-    elif len(rows) > 0:
-        mask = np.ones(mat.shape[0], dtype=bool)
-        mask[rows] = False
-        return mat[mask]
-    elif len(cols) > 0:
-        mask = np.ones(mat.shape[1], dtype=bool)
-        mask[cols] = False
-        return mat[:,mask]
-    else:
-        return mat
-
-
-class BCtype:
-    Neu = 0
-    Dir = 1
+# Our Gaussian-quadrature-code and other tools:
+from ..tools import matprint, delete_from_csr, \
+                    quadrature1D, quadrature2D, \
+                    triangle_area, BCtype
 
 
 class Poisson2DSolver():
@@ -94,7 +50,6 @@ class Poisson2DSolver():
         self.edge_triangles = list(self.triang[self.edge_triangle_indexes])
 
         self.num_nodes = N
-        self.num_unknowns = N - len(self.edge_nodes)
         self.quad_points = quad_points
         self.area = area  # A bit superfluous. 
 
@@ -202,8 +157,7 @@ class Poisson2DSolver():
         Function calculating the (Aₕ)ᵢ,ⱼ-th element of the "Stiffness"-matrix.
         i: Local index of basis function. [0, 1, 2]
         j: Local index of basis function. [0, 1, 2]
-        element: Which element to integrate over. Scale integrand using the Jacobian matrix.
-        J_inv: Inverse Jacobian: ∂(r,s)/∂(x, y)
+        J_inv_T: Inverse Jacobian transposed: [∂(r,s)/∂(x, y)].T
         elem_area: Area of the element: |J|/2
         """
         
