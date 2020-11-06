@@ -92,13 +92,6 @@ def test_animate_mesh_stress(N=6, area="plate"):
 
     k = N//2
 
-    vibration_eigenvec = solver.vibration_eigenvectors[:, k]
-        
-    displacement_vec = np.zeros(solver.nodes.shape)
-    
-    for n, d in iter_product(range(solver.num_nodes), (0, 1)):
-        displacement_vec[n, d] = vibration_eigenvec[2*n + d]
-
     solver.animate_vibration_mode_stress(k=k, alpha=0.05, l=3)
 
     return
@@ -115,7 +108,7 @@ def test_markov(N=10, area="plate"):
     k = N//2
 
     start = time()
-    solver.animate_vibration_mode_stress(k=k, alpha=0.05, l=3, show=False, savename="mtest")
+    solver.animate_vibration_mode_stress(k=k, alpha=0.05, l=1, show=False, savename="mtest2", playtime=2*np.pi, fps=30)
     end = time()
     print(f'{(end-start)} s')
 

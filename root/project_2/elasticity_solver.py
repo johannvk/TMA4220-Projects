@@ -593,7 +593,7 @@ class Elasticity2DSolver():
 
         displacement_vec = self.vibration_eigenvectors[k]
 
-        N_frames = playtime * fps
+        N_frames = int(playtime * fps)
         ts = np.linspace(0, 2*np.pi, N_frames)
         disp_vecs = [alpha * np.sin(l*t) * displacement_vec for t in ts]
 
@@ -601,7 +601,7 @@ class Elasticity2DSolver():
 
         norm = mpl.colors.Normalize(vmin=-max_stretch, vmax=max_stretch)
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(1.5*16,1.5*9))
 
         artists = [self.display_mesh_stress(displacement=disp_vecs[i], norm=norm, show=False, ax=ax).findobj() for i in range(N_frames)]
 
