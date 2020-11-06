@@ -14,8 +14,8 @@ def main():
     # steel_animation(N=8, area="plate", mode=9, max_modes=10)
     # timber_animation(N=8, area="plate", mode=9, max_modes=50)
     # test_markov(N=10, area="plate")
-    # test_animate_mesh_stress()
-    save_material_vibration_modes(N=5, k_min=2, k_max=4)    
+    # test_animate_mesh_stress(N=10)
+    save_material_vibration_modes(N=6, k_min=3, k_max=4)
     pass
 
 

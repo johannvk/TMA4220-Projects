@@ -120,7 +120,7 @@ def timber_solver(N=10, area="plate", max_modes=20, savename=None):
     return timber_solver
 
 
-def save_material_vibration_modes(N=40, k_min=0, k_max=10, area="plate"):
+def save_material_vibration_modes(N=40, k_min=0, k_max=10, area="plate", fps=30):
     from time import time
 
     start = time()
@@ -129,27 +129,35 @@ def save_material_vibration_modes(N=40, k_min=0, k_max=10, area="plate"):
     alu_filename = "/bulk/aluminium_{}_N_{}_mode_{}"
     timber_filename = "/bulk/timber_{}_N_{}_mode_{}"
 
-    steel_sol = steel_solver(N=N, area=area, max_modes=k_max+1)
-    alu_sol = aluminium_solver(N=N, area=area, max_modes=k_max+1)
-    timber_sol = timber_solver(N=N, area=area, max_modes=k_max+1)
 
     l = 1
     alpha = 1
+    print("\nBeginning Steel animations...")
+    steel_sol = steel_solver(N=N, area=area, max_modes=k_max+1)    
     for k in range(k_min, k_max):
         steel_file = steel_filename.format(area, N, k)
         steel_title = f"Vibration mode {k} for Stainless Steel {area}, {len(steel_sol.triang)} Elements"
-        steel_sol.animate_vibration_mode_stress(k, alpha=alpha, l=l, savename=steel_file, title=steel_title)
-        print(f"\nSteel mode {k} complete...")
+        steel_sol.animate_vibration_mode_stress(k, alpha=alpha, l=l, savename=steel_file, title=steel_title, fps=fps)
+        print(f"Steel mode {k} complete...\n")
+    del(steel_sol)
 
+    print("\nBeginning Alu animations...")
+    alu_sol = aluminium_solver(N=N, area=area, max_modes=k_max+1)    
+    for k in range(k_min, k_max):
         alu_file = alu_filename.format(area, N, k)
         alu_title = f"Vibration mode {k} for Aluminium {area}, {len(alu_sol.triang)} Elements"
-        alu_sol.animate_vibration_mode_stress(k, alpha=alpha, l=l, savename=alu_file, title=alu_title)
-        print(f"Aluminium mode {k} complete...")
+        alu_sol.animate_vibration_mode_stress(k, alpha=alpha, l=l, savename=alu_file, title=alu_title, fps=fps)
+        print(f"Aluminium mode {k} complete...\n")
+    del(alu_sol)
 
+    print("\nBeginning Timber animations...")
+    timber_sol = timber_solver(N=N, area=area, max_modes=k_max+1)
+    for k in range(k_min, k_max):    
         timber_file = timber_filename.format(area, N, k)
         timber_title = f"Vibration mode {k} for Timber {area}, {len(timber_sol.triang)} Elements"
-        timber_sol.animate_vibration_mode_stress(k, alpha=alpha, l=l, savename=timber_file, title=timber_title)
+        timber_sol.animate_vibration_mode_stress(k, alpha=alpha, l=l, savename=timber_file, title=timber_title, fps=fps)
         print(f"Timber mode {k} complete...\n")
+    del(timber_sol)
 
     end = time()
     print("DONE!")

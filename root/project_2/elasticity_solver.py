@@ -164,22 +164,7 @@ class Elasticity2DSolver():
 
     def display_mesh_stress(self, nodes=None, elements=None, displacement=None, face_colors=None, norm=None, show=True, ax=None):
 
-        if elements is None and nodes is None:
-            element_triang = self.triang
-
-        elif nodes is not None:
-            # Find all triangles with nodes-elements as vertices.
-            if type(nodes) is int:
-                triangle_indices = [i for i, triangle in enumerate(self.triang) if nodes in triangle] 
-            else:
-                # Stupidly unreadable One-line solution:
-                triangle_indices = list(filter(lambda i: any((node in self.triang[i] for node in nodes)), 
-                                               np.arange(len(self.triang))))
-
-            element_triang = self.triang[triangle_indices]
-
-        else:
-            element_triang = self.triang[elements]
+        element_triang = self.triang
         
         nodes_x = np.copy(self.nodes[:, 0])
         nodes_y = np.copy(self.nodes[:, 1])
@@ -194,17 +179,18 @@ class Elasticity2DSolver():
             zcolors = np.zeros(len(element_triang), dtype=float)
 
             for k, el in enumerate(element_triang):
+                J_inv_T = la.inv(self.generate_jacobian(k)).T
 
-                sigma_0 = self.sigma_vec(0, displacement[el[0],:], k=k)
-                sigma_1 = self.sigma_vec(1, displacement[el[1],:], k=k)
-                sigma_2 = self.sigma_vec(2, displacement[el[2],:], k=k)
+                sum_mts = 0.0
+                for i, d in enumerate(el):
 
-                mts0 = 0.5 * ( sigma_0[0] + sigma_0[1])
-                mts1 = 0.5 * ( sigma_1[0] + sigma_1[1])
-                mts2 = 0.5 * ( sigma_2[0] + sigma_2[1])
+                    sigma_i = self.sigma_vec(i, displacement[d,:], J_inv_T=J_inv_T)
+                    mts_i = (sigma_i[0] + sigma_i[1])
 
-                zcolors[k] = ( mts0 + mts1 + mts2 ) / 3
-
+                    sum_mts += mts_i
+                
+                zcolors[k] = sum_mts / 6.0
+                
         if ax is not None:
             plot = ax.tripcolor(nodes_x, nodes_y, triangles=element_triang, facecolors=zcolors, edgecolors='k', norm=norm)
         else:
