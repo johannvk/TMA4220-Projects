@@ -102,3 +102,21 @@ def test_animate_mesh_stress(N=6, area="plate"):
     solver.animate_vibration_mode_stress(k=k, alpha=0.05, l=3)
 
     return
+
+def test_markov(N=10, area="plate"):
+
+    from time import time
+
+    model_dict = {"N": N, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
+                  "class_BC": 12.0, "E": 12.0, "nu": 0.22, "rho": 1.0, "area": area}
+    solver = Elasticity2DSolver.from_dict(model_dict)
+    solver.solve_vibration_modes(num=N)
+
+    k = N//2
+
+    start = time()
+    solver.animate_vibration_mode_stress(k=k, alpha=0.05, l=3, show=False, savename="mtest")
+    end = time()
+    print(f'{(end-start)} s')
+
+    return

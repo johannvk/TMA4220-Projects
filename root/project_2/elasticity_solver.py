@@ -617,7 +617,7 @@ class Elasticity2DSolver():
         fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=None), ax=ax)
 
         if savename is not None:
-            ani.save(f"{savename}.mp4")
+            ani.save(f"root/project_2/animations/{savename}.mp4")
 
         if show is None:
             if savename is None:
