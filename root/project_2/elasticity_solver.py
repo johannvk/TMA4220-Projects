@@ -318,7 +318,27 @@ class Elasticity2DSolver():
         eps_xy = d*gradient[0] + (1-d)*gradient[1]
         
         return np.array([eps_xx, eps_yy, eps_xy])
-     
+
+    def simga_vec(self, node: int, i: int, J_inv_T=None, k=None):
+        """
+        Calculate sigma-components [σ_xx, σ_yy, σ_xy]
+        at the node index. 
+        node: Global index
+        i: Local basis function index.
+        """
+        # Slow extra checking. Might be removed. 
+        if J_inv_T is not None:
+            pass
+        elif J_inv_T is None and type(k) is int:
+            J_inv_T = la.inv(self.generate_jacobian(k)).T
+        else:
+            raise ValueError("Either the inverse-Jacobian transpose 'J_int_T' or element number 'k' must be given.")
+
+        eps_vec_0 = self.basis_func_eps_vec(i, d=0, J_inv_T=J_inv_T)
+        eps_vec_1 = self.basis_func_eps_vec(i, d=1, J_inv_T=J_inv_T)
+        sigma_vec = self.C @ (eps_vec_0 + eps_vec_1)
+        return sigma_vec
+
     def A_i_j(self, i_loc, j_loc, d_i, d_j, A_k, J_inv_T):
         """
         Function calculating a (Aₕ)ᵢ,ⱼ-th contribution to the "Stiffness"-matrix.
