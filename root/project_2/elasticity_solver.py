@@ -806,11 +806,11 @@ class Elasticity2DSolver():
                     
         # Remove redundant degrees of freedom from A_h and F_h:
         F_mask = np.ones(len(self.F_h), dtype=bool)
-        F_mask[self.dirichlet_BC_nodes] = False
+        F_mask[self.dirichlet_BC_basis_functions] = False
         self.F_h = self.F_h[F_mask]
 
-        self.A_h = delete_from_csr(self.A_h, row_indices=self.dirichlet_BC_nodes, 
-                                             col_indices=self.dirichlet_BC_nodes)
+        self.A_h = delete_from_csr(self.A_h, row_indices=self.dirichlet_BC_basis_functions, 
+                                             col_indices=self.dirichlet_BC_basis_functions)
         self.applied_BC = True
 
     def solve_big_number_dirichlet(self):
