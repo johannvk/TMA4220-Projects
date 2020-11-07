@@ -549,7 +549,6 @@ class Elasticity2DSolver():
         displacement_vec = self.vibration_eigenvectors[k]
         N_frames = playtime * fps
         ts = np.linspace(0, 2*np.pi, N_frames)
-        disp_vecs = [alpha * np.sin(l*t) * displacement_vec for t in ts]
 
         fig, ax = plt.subplots()
         if title is None:
@@ -557,7 +556,8 @@ class Elasticity2DSolver():
         else:
             fig.suptitle(title, fontsize=18)
 
-        artists = [self.display_mesh(displacement=disp_vecs[i], show=False, ax=ax) for i in range(N_frames)]
+        artists = [self.display_mesh(displacement=alpha*np.sin(l*t)*displacement_vec,
+                    show=False, ax=ax) for t in ts]
 
         ani = ArtistAnimation(fig, artists, interval=1000//fps, repeat_delay=repeat_delay, repeat=True, blit=True)
 
@@ -573,6 +573,15 @@ class Elasticity2DSolver():
         if show:
             plt.show()
 
+        # Clean up memory
+        fig.clear()
+        plt.close(fig)
+        del fig, ax, artists, ani
+        import gc
+        gc.collect()
+
+        return
+
     def animate_vibration_mode_stress(self, k, alpha=1, l=1, show=None, savename=None, 
                                       playtime=5, fps=60, repeat_delay=0, title=None):
         if k > self.num_eigenpairs - 1:
@@ -582,7 +591,6 @@ class Elasticity2DSolver():
 
         N_frames = int(playtime * fps)
         ts = np.linspace(0, 2*np.pi, N_frames)
-        disp_vecs = [alpha * np.sin(l*t) * displacement_vec for t in ts]
 
         max_stretch = self.find_max_stress(displacement=displacement_vec*alpha)
 
@@ -603,12 +611,12 @@ class Elasticity2DSolver():
         else:
             pass
 
-        artists = [self.display_mesh_stress(displacement=disp_vecs[i], norm=norm, show=False, ax=ax).findobj() for i in range(N_frames)]
+        artists = [self.display_mesh_stress(displacement=alpha*np.sin(l*t)*displacement_vec,
+                    norm=norm, show=False, ax=ax).findobj() for t in ts]
 
         ani = ArtistAnimation(fig, artists, interval=1000//fps, repeat_delay=repeat_delay, repeat=True, blit=True)
         cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=None), ax=ax)
         cbar.ax.get_yaxis().labelpad = 50
-        # cbar.ax.set_ylabel('# of contacts', rotation=270)
         cbar.set_label(r"Mean Total Stress $\sigma$ [Pa]", rotation=270, fontsize=24)
 
         if savename is not None:
@@ -622,6 +630,13 @@ class Elasticity2DSolver():
         
         if show:
             plt.show()
+
+        # Clean up memory
+        fig.clear()
+        plt.close(fig)
+        del fig, ax, artists, ani, norm, cbar
+        import gc
+        gc.collect()
 
         return
 
