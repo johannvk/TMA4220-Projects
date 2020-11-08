@@ -11,6 +11,9 @@ from mpl_toolkits.mplot3d import Axes3D
 from .fem_2d_solver import Poisson2DSolver
 from ..tools import quadrature2D, matprint, BCtype 
 
+# Other tasks:
+from .convergence_plots import show_dirichlet_and_neumann_convergence
+
 
 def display_analytical_solution(N=1000, u=None):
     if u is None:    
@@ -190,8 +193,9 @@ def display_abs_error(N=1000, dirichlet=True, u=None):
 def run_tasks():
     task_2_e()
     task_3()
+    show_dirichlet_and_neumann_convergence()
     # direct_dirichlet_FEM_solution()
     # big_number_dirichlet_FEM_solution()
-    display_abs_error(dirichlet=False)
+    # display_abs_error(dirichlet=False)
     # display_analytical_solution(N=1000)
-
+    
