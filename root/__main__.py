@@ -13,9 +13,9 @@ def main():
     # test_elasticity_solver(N=25, area="plate")
     # test_animation(mode=10)
     # test_markov(N=10, area="plate")
-    test_animate_mesh_stress(N=10)
+    # test_animate_mesh_stress(N=10)
     # save_material_vibration_modes(N=6, k_min=3, k_max=4)
-    test_full_solver(N=20)
+    test_full_solver(N=10)
 
     pass
 

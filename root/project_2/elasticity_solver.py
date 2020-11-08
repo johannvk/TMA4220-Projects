@@ -90,6 +90,7 @@ class Elasticity2DSolver():
 
         # Store which nodes are BCtype.Dir and their values:
         self.dirichlet_BC_mask = np.zeros(self.num_basis_functions, dtype=bool)
+        self.dirichlet_BC_nodes_mask = np.zeros(self.num_nodes, dtype=bool)
         self.dirichlet_BC_basis_functions = []
         self.dirichlet_BC_values = []
 
@@ -533,8 +534,10 @@ class Elasticity2DSolver():
         Find the 'num' lowest generalized eigenvalues, along with eigenvectors. \n
             Aₕu = ω²Mₕu 
         """
-        self.generate_A_h()
-        self.generate_M_h()
+        if self.A_h is None:
+            self.generate_A_h()
+        if self.M_h is None:
+            self.generate_M_h()
 
         eigvals_small, eigvecs_small = spla.eigsh(A=self.A_h, M=self.M_h, 
                                                   k=num, which="LM", sigma=0.0)
@@ -543,13 +546,14 @@ class Elasticity2DSolver():
 
         # List of the displacement eigenvectors for each eigenvalue: 
         self.vibration_eigenvectors = []
+        num_dof = int(self.num_nodes - len(self.dirichlet_BC_basis_functions)//2)
         for k in range(num):
-            displacement_vec = np.zeros(self.nodes.shape)
+            displacement_vec = np.zeros((num_dof, 2))
     
             # Eigenvectors stored column-wise:
             vibration_eigenvec = eigvecs_small[:, k]
             
-            for n, d in iter_product(range(self.num_nodes), (0, 1)):
+            for n, d in iter_product(range(num_dof), (0, 1)):
                 displacement_vec[n, d] = vibration_eigenvec[2*n + d]
             
             self.vibration_eigenvectors.append(displacement_vec)
@@ -598,7 +602,15 @@ class Elasticity2DSolver():
         if k > self.num_eigenpairs - 1:
             raise ValueError(f"Too high an eigen-number. Have only solved for {self.num_eigenpairs} eigenpairs.")
 
-        displacement_vec = self.vibration_eigenvectors[k]
+        if not self.applied_BC:
+            displacement_vec = self.vibration_eigenvectors[k]
+        else:
+            displacement_vec = np.zeros((self.num_nodes, 2))
+            num_Dir_BC_nodes = len(self.dirichlet_BC_basis_functions)//2
+            Dir_BC_displacement = np.array(self.dirichlet_BC_values).reshape(num_Dir_BC_nodes, 2)
+
+            displacement_vec[self.dirichlet_BC_nodes_mask]  = Dir_BC_displacement
+            displacement_vec[~self.dirichlet_BC_nodes_mask] = self.vibration_eigenvectors[k]
 
         N_frames = int(playtime * fps)
         ts = np.linspace(0, 2*np.pi, N_frames)
@@ -722,6 +734,8 @@ class Elasticity2DSolver():
         # as Dirichlet BC's:
         self.dirichlet_BC_mask[i_0] = True
         self.dirichlet_BC_mask[i_1] = True
+
+        self.dirichlet_BC_nodes_mask[node] = True
 
         # Register basis functions as Dirichlet BC's:
         self.dirichlet_BC_basis_functions.append(i_0)

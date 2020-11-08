@@ -2,7 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from .elasticity_solver import Elasticity2DSolver
-from root.tools import BCtype
+from root.tools import BCtype, delete_from_csr
+
 
 def test_elasticity_solver(N=5, area="plate"):
     
@@ -95,16 +96,33 @@ def test_full_solver(N=10, area="plate"):
 
     def g_D(p):
         return np.array([0.0, 0.0])
-    # f = lambda p: np.array([-p[0], p[1]*p[0]])
+    
+    def class_BC(p):
+        if p[0] == -1.0:
+            return BCtype.Dir
+        else:
+            return -1
 
     model_dict = {"N": N, "f": f, "g_D": g_D, "g_N": lambda _: False,
-                  "class_BC": lambda p: BCtype.Dir, "E": E, "nu": nu, "rho": rho, "area": area}
+                  "class_BC": class_BC, "E": E, "nu": nu, "rho": rho, "area": area}
     
     solver = Elasticity2DSolver.from_dict(model_dict)
 
     # Display analytical solution:
-    solver.display_vector_field(u=u, title="Analytical solution")
+    # solver.display_vector_field(u=u, title="Analytical solution")
 
+    # Lock the left-most edge:
+    """
     solver.solve_direct_dirichlet()
-    solver.display_vector_field(u=solver.u_h, title="FEM solution")
-    solver.display_mesh_stress(displacement=solver.u_h, show=True)
+
+    # Internal Model-Hacking:
+    solver.generate_M_h()
+    solver.M_h = delete_from_csr(solver.M_h, row_indices=solver.dirichlet_BC_basis_functions, 
+                                             col_indices=solver.dirichlet_BC_basis_functions)
+    """
+
+    solver.solve_vibration_modes(num=20)
+    solver.animate_vibration_mode_stress(k=4, alpha=0.1, l=1, show=True, savename=None, fps=30)
+
+    # solver.display_vector_field(u=solver.u_h, title="FEM solution")
+    # solver.display_mesh_stress(displacement=solver.u_h, show=True)
