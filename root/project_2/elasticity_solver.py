@@ -10,13 +10,17 @@ from matplotlib.animation import ArtistAnimation
 
 from itertools import product as iter_product
 
-from ..triangulation import getPlate, GetDisc
+from ..triangular_2d_fem import Triangular2DFEM
 
 from ..tools import matprint, delete_from_csr, \
                     quadrature1D, quadrature2D, BCtype
 
+# Now we inherit from a common "Linear, Triangular Finite Element Solver"
+# Base class contains the nodes, triangulation (triang), edge_nodes, coordinate transformations, etc. 
+# As well as the definitions of the basis functions and their gradients.
+# Should refactor project_1 solver as well!
 
-class Elasticity2DSolver():
+class Elasticity2DSolver(Triangular2DFEM):
     """
     2D-FEM solver of the static equilibrium equation:\n
         ρuₜₜ = ∇ᵀσ(u) + f, (x, y) ∈ Ω = [-1, 1]² \n
@@ -44,19 +48,9 @@ class Elasticity2DSolver():
         g_N:      Function g([x, y]) -> R, specifying Neumann boundary conditions.   \n
         class_BC: Function BC_type([x, y]) -> Bool, returning True if point [x, y] 
                   should be a Dirichlet BC. Assumed Neumann if not.                \n
-        area:     What geometry to solve the elasticity equation on. Default: "plate".
         """
-        # Geometry setup:
-        if area == "plate":
-            # We get incorrect edges out of 'getPlate()'. 
-            # Fixed to only get edge nodes for now.
-            self.nodes, self.triang, self.edge_nodes = getPlate(N)
-        elif area == "disc":
-            self.nodes, self.triang, edges = GetDisc(N)
-            self.edge_nodes = edges[:, 0]
-        else:
-            raise NotImplementedError("Ups, only support the 'plate' and 'disc' geometry.")
-        
+        super(Elasticity2DSolver, self).__init__(N=N, area=area)
+
         self.edge_triangle_indexes = list(filter(lambda i: any((node in self.triang[i] for node in self.edge_nodes)), 
                                                  np.arange(len(self.triang))))
         self.edge_triangles = list(self.triang[self.edge_triangle_indexes])
@@ -108,15 +102,6 @@ class Elasticity2DSolver():
 
         # Initialize the Basis function coefficients "u_h" to None:
         self.u_h = None
-
-        # Linear Lagrange polynomial basis functions on the reference triangle:
-        self.basis_functions = (lambda eta: 1 - eta[0] - eta[1], lambda eta: eta[0], lambda eta: eta[1])
-
-        # Gradients of basis functions in reference coordinates:
-        self.reference_gradients = (np.array([-1.0, -1.0]), np.array([1.0, 0.0]), np.array([0.0, 1.0]))
-
-        # Reference triangle:
-        self.reference_triangle_nodes = (np.array([0.0, 0.0]), np.array([1.0, 0.0]), np.array([0.0, 1.0]))
     
     @classmethod
     def from_dict(cls, model_dict):
@@ -197,7 +182,7 @@ class Elasticity2DSolver():
 
                     sum_mts += mts_i
                 
-                zcolors[k] = sum_mts / 6.0
+                zcolors[k] = sum_mts / 6.0  # Average over 2 elements in tr(σ) and 3 nodes.
                 
         if ax is not None:
             plot = ax.tripcolor(nodes_x, nodes_y, triangles=element_triang, facecolors=zcolors, edgecolors='k', norm=norm)
@@ -236,7 +221,6 @@ class Elasticity2DSolver():
         """
         # Vector X- and Y-components:
         if callable(u):
-            assert(callable(u))
             vectors = np.array([u(p) for p in self.nodes])
         else:
             # Assume u contains displacement of each node:
@@ -267,46 +251,6 @@ class Elasticity2DSolver():
 
         plt.subplots_adjust(left=0.08, bottom=0.08, right=0.97, top=0.95)
         plt.show()
-
-    def generate_jacobian(self, element: int):
-        """
-        Function to generate the Jacobian J = ∂(x,y)/∂(r, s)\n
-        for transforming from the reference triangle to global coordinates.\n
-        element: The target element (triangle) of the transformation from the reference element.
-        """
-        p1, p2, p3 = self.nodes[self.triang[element]]
-        J = np.column_stack([p2-p1, p3-p1])
-        return J
-
-    def reference_to_global_transformation(self, eta, element, J=None):
-        """
-        Function transforming reference coordinates eta = [r, s] to 
-        global coordinates [x, y] for a given element.
-        eta: np.array([r, s])
-        element: int in range(Num_elements)
-        J: If the transformation is called repeatedly on the same element, 
-           one can provide the already calculated Jacobian.
-           TODO: Do we want to return the calculated Jacobian as well? Think No.
-        """
-        translation = self.nodes[self.triang[element][0]]
-        if J is None:
-            J = self.generate_jacobian(element)
-        return J @ np.array(eta) + translation
-    
-    def global_to_reference_transformation(self, p, element, J_inv=None):
-        """
-        Function transforming global coordinates p = [x, y] to 
-        reference coordinates eta = [r, s] for a given element.
-        p: np.array([x, y])
-        element: int in range(Num_elements)
-        J_inv: If the transformation is called repeatedly on the same element,
-               one can provide the already calculated inverse Jacobian.
-               TODO: Do we want to return the calculated inverse-Jacobian as well? Think No.
-        """
-        translation = self.nodes[self.triang[element][0]]
-        if J_inv is None:
-            J_inv = la.inv(self.generate_jacobian(element))
-        return J_inv @ (p - translation)
      
     def basis_func_eps_vec(self, i, d, J_inv_T=None, k=None):
         """
@@ -563,14 +507,15 @@ class Elasticity2DSolver():
     def display_vibration_mode(self, k):
         if k > self.num_eigenpairs - 1:
             raise ValueError(f"Too high an eigen-number. Have only solved for {self.num_eigenpairs} eigenpairs.")
-        
-        return self.display_mesh(displacement=self.vibration_eigenvectors[k])
+        displacement_vec = self.retrieve_vibration_eigenvector(k)
+        return self.display_mesh(displacement=displacement_vec)
 
     def animate_vibration_mode(self, k, alpha=1, l=1, show=None, savename=None, playtime=5, fps=60, repeat_delay=0, title=None):
         if k > self.num_eigenpairs - 1:
             raise ValueError(f"Too high an eigen-number. Have only solved for {self.num_eigenpairs} eigenpairs.")
 
-        displacement_vec = self.vibration_eigenvectors[k]
+        displacement_vec = self.retrieve_vibration_eigenvector(k)
+
         N_frames = playtime * fps
         ts = np.linspace(0, 2*np.pi, N_frames)
         disp_vecs = [alpha * np.sin(l*t) * displacement_vec for t in ts]
@@ -602,15 +547,7 @@ class Elasticity2DSolver():
         if k > self.num_eigenpairs - 1:
             raise ValueError(f"Too high an eigen-number. Have only solved for {self.num_eigenpairs} eigenpairs.")
 
-        if not self.applied_BC:
-            displacement_vec = self.vibration_eigenvectors[k]
-        else:
-            displacement_vec = np.zeros((self.num_nodes, 2))
-            num_Dir_BC_nodes = len(self.dirichlet_BC_basis_functions)//2
-            Dir_BC_displacement = np.array(self.dirichlet_BC_values).reshape(num_Dir_BC_nodes, 2)
-
-            displacement_vec[self.dirichlet_BC_nodes_mask]  = Dir_BC_displacement
-            displacement_vec[~self.dirichlet_BC_nodes_mask] = self.vibration_eigenvectors[k]
+        displacement_vec = self.retrieve_vibration_eigenvector(k)
 
         N_frames = int(playtime * fps)
         ts = np.linspace(0, 2*np.pi, N_frames)
@@ -656,6 +593,18 @@ class Elasticity2DSolver():
             plt.show()
 
         return
+    
+    def retrieve_vibration_eigenvector(self, k):
+        if not self.applied_BC:
+            displacement_vec = self.vibration_eigenvectors[k]
+        else:
+            displacement_vec = np.zeros((self.num_nodes, 2))
+            num_Dir_BC_nodes = len(self.dirichlet_BC_basis_functions)//2
+            Dir_BC_displacement = np.array(self.dirichlet_BC_values).reshape(num_Dir_BC_nodes, 2)
+
+            displacement_vec[self.dirichlet_BC_nodes_mask]  = Dir_BC_displacement
+            displacement_vec[~self.dirichlet_BC_nodes_mask] = self.vibration_eigenvectors[k]
+        return displacement_vec
 
     def generate_F_h(self):
         """
@@ -690,35 +639,6 @@ class Elasticity2DSolver():
         
         # Reshape F_h to a column vector:
         self.F_h = self.F_h.reshape(len(self.F_h), 1)
-
-    def apply_big_number_dirichlet(self, eps=None):
-        """
-        Apply pure Dirichlet boundary conditions to A_h and F_h 
-        using the "Big Number"-approach.
-        """
-        # TODO: UPDATE
-        raise NotImplementedError("Need to update function for ElasticitySolver2D")
-
-        if self.A_h is None or self.F_h is None:
-            print("Cannot apply boundary conditions before A_h and F_h are constructed!")
-            return
-        if eps is None:
-            eps = self.eps
-
-        eps_inv = 1.0/eps        
-        for node in self.edge_nodes:
-            p = self.nodes[node]
-            class_BC = self.class_BC(p)
-
-            if class_BC == BCtype.Dir:
-                """
-                If node is a Dirichlet node
-                """
-                g_D = self.g_D(p)
-                self.A_h[node, node] = eps_inv
-                self.F_h[node] = g_D*eps_inv
-        
-        self.applied_BC = True
 
     def apply_node_dirichlet_bc(self, node, p=None):
         if p is None:
@@ -763,15 +683,31 @@ class Elasticity2DSolver():
                 # Find which triangles the Edge node belongs to:
                 raise ValueError("Cannot apply Neumann BC Using Direct Dirichlet function!")
         
-        # Remove redundant degrees of freedom from A_h and F_h:
+        # Remove redundant degrees of freedom from F_h, A_h, and M_h:
         F_mask = np.ones(len(self.F_h), dtype=bool)
         F_mask[self.dirichlet_BC_basis_functions] = False
         self.F_h = self.F_h[F_mask]
 
         self.A_h = delete_from_csr(self.A_h, row_indices=self.dirichlet_BC_basis_functions, 
                                              col_indices=self.dirichlet_BC_basis_functions)
+        if self.M_h is None:
+            self.generate_M_h()
+
+        self.M_h = delete_from_csr(self.M_h, row_indices=self.dirichlet_BC_basis_functions, 
+                                             col_indices=self.dirichlet_BC_basis_functions)                                             
         self.applied_BC = True
 
+    def solve_direct_dirichlet(self):
+        self.generate_A_h()
+        self.generate_F_h()
+        self.apply_direct_dirichlet()
+        
+        reduced_u_h = sp.linalg.spsolve(self.A_h, self.F_h)
+        self.u_h = np.zeros(self.num_basis_functions)
+        self.u_h[~self.dirichlet_BC_mask] = reduced_u_h
+        self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
+        self.u_h = self.u_h.reshape((self.num_nodes, 2))
+    
     def apply_boundary_conditions(self):
         """
         Apply boundary conditions element-wise. Take care to avoid
@@ -827,6 +763,35 @@ class Elasticity2DSolver():
                                              col_indices=self.dirichlet_BC_basis_functions)
         self.applied_BC = True
 
+    def apply_big_number_dirichlet(self, eps=None):
+        """
+        Apply pure Dirichlet boundary conditions to A_h and F_h 
+        using the "Big Number"-approach.
+        """
+        # TODO: UPDATE
+        raise NotImplementedError("Need to update function for ElasticitySolver2D")
+
+        if self.A_h is None or self.F_h is None:
+            print("Cannot apply boundary conditions before A_h and F_h are constructed!")
+            return
+        if eps is None:
+            eps = self.eps
+
+        eps_inv = 1.0/eps        
+        for node in self.edge_nodes:
+            p = self.nodes[node]
+            class_BC = self.class_BC(p)
+
+            if class_BC == BCtype.Dir:
+                """
+                If node is a Dirichlet node
+                """
+                g_D = self.g_D(p)
+                self.A_h[node, node] = eps_inv
+                self.F_h[node] = g_D*eps_inv
+        
+        self.applied_BC = True
+
     def solve_big_number_dirichlet(self):
         # TODO: UPDATE
         raise NotImplementedError("Need to update function for ElasticitySolver2D")
@@ -834,17 +799,6 @@ class Elasticity2DSolver():
         self.generate_F_h()
         self.apply_big_number_dirichlet()
         self.u_h = sp.linalg.spsolve(self.A_h, self.F_h)
-
-    def solve_direct_dirichlet(self):
-        self.generate_A_h()
-        self.generate_F_h()
-        self.apply_direct_dirichlet()
-        
-        reduced_u_h = sp.linalg.spsolve(self.A_h, self.F_h)
-        self.u_h = np.zeros(self.num_basis_functions)
-        self.u_h[~self.dirichlet_BC_mask] = reduced_u_h
-        self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
-        self.u_h = self.u_h.reshape((self.num_nodes, 2))
 
     def solve(self):
         # TODO: UPDATE
@@ -912,4 +866,3 @@ class Elasticity2DSolver():
         """
 
         raise NotImplementedError
-

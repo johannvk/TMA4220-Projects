@@ -41,7 +41,7 @@ def test_animation(N=20, area="plate", mode=5):
     model_dict = {"N": N, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
                   "class_BC": 12.0, "E": 10.0, "nu": 0.22, "rho": 1.0, "area": area}    
     solver = Elasticity2DSolver.from_dict(model_dict)
-    solver.solve_vibration_modes(num=10)
+    solver.solve_vibration_modes(num=mode+1)
     solver.animate_vibration_mode(mode, alpha=1, l=5, savename=None)
     print("What?!")
     return
@@ -112,9 +112,9 @@ def test_full_solver(N=10, area="plate"):
     # solver.display_vector_field(u=u, title="Analytical solution")
 
     # Lock the left-most edge:
-    """
     solver.solve_direct_dirichlet()
 
+    """
     # Internal Model-Hacking:
     solver.generate_M_h()
     solver.M_h = delete_from_csr(solver.M_h, row_indices=solver.dirichlet_BC_basis_functions, 
@@ -122,7 +122,7 @@ def test_full_solver(N=10, area="plate"):
     """
 
     solver.solve_vibration_modes(num=20)
-    solver.animate_vibration_mode_stress(k=4, alpha=0.1, l=1, show=True, savename=None, fps=30)
+    solver.animate_vibration_mode_stress(k=4, alpha=0.5, l=1, show=True, savename=None, fps=30)
 
     # solver.display_vector_field(u=solver.u_h, title="FEM solution")
     # solver.display_mesh_stress(displacement=solver.u_h, show=True)
