@@ -1,5 +1,5 @@
-README - TMA4220 Project 1
-
+README - TMA4220 Projects
+# TODO: UPDATE!
 The source code for the Finite Element solver is located in "fem_2d_solver.py".
 The solver is implemented in the class "Poisson2DSolver()", which stores the requisite
 parameters and has the required functionality for constructing things such as stiffness
