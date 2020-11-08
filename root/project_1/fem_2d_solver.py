@@ -8,9 +8,8 @@ import matplotlib.pyplot as plt
 import matplotlib.tri as mtri
 from mpl_toolkits.mplot3d import Axes3D
 
-
-# Mesh generation code from lecturers:
-from ..triangulation.getdisc import GetDisc
+# 2D FEM base class:
+from ..triangular_2d_fem import Triangular2DFEM
 
 # Our Gaussian-quadrature-code and other tools:
 from ..tools import matprint, delete_from_csr, \
@@ -18,7 +17,7 @@ from ..tools import matprint, delete_from_csr, \
                     triangle_area, BCtype
 
 
-class Poisson2DSolver():
+class Poisson2DSolver(Triangular2DFEM):
     """
     2D-FEM solver of the Poisson equation:\n
         -∆u(x, y) = f(x, y), (x, y) ∈ ℜ².
@@ -38,17 +37,13 @@ class Poisson2DSolver():
                   should be a Dirichlet BC. Assumed Neumann if not. 
         area: What geometry to solve the poisson equation on. Default: disc.
         """
-        # Geometry setup:
-        if area == "disc":
-            self.nodes, self.triang, self.edges = GetDisc(N)
-        else:
-            raise NotImplementedError("Ups, only support the 'disc' geometry.")
+        super(Poisson2DSolver, self).__init__(N=N, area=area)
         
-        self.edge_nodes = self.edges[:, 0]
+        # Find which triangles are on the edge of our geometry:
         self.edge_triangle_indexes = list(filter(lambda i: any((node in self.triang[i] for node in self.edge_nodes)), 
                                                  np.arange(len(self.triang))))
         self.edge_triangles = list(self.triang[self.edge_triangle_indexes])
-
+        
         self.num_nodes = N
         self.quad_points = quad_points
         self.area = area  # A bit superfluous. 
@@ -77,15 +72,6 @@ class Poisson2DSolver():
         # Initialize the Basis function coefficients "u_h" to None:
         self.u_h = None
 
-        # Linear Lagrange polynomial basis functions on the reference triangle:
-        self.basis_functions = (lambda eta: 1 - eta[0] - eta[1], lambda eta: eta[0], lambda eta: eta[1])
-
-        # Gradients of basis functions in reference coordinates:
-        self.reference_gradients = (np.array([-1.0, -1.0]), np.array([1.0, 0.0]), np.array([0.0, 1.0]))
-
-        # Reference triangle:
-        self.reference_triangle_nodes = (np.array([0.0, 0.0]), np.array([1.0, 0.0]), np.array([0.0, 1.0]))
-
     def display_mesh(self, nodes=None, elements=None):
         if elements is None and nodes is None:
             element_triang = self.triang
@@ -111,46 +97,6 @@ class Poisson2DSolver():
 
         plt.triplot(self.nodes[:, 0], self.nodes[:, 1], triangles=element_triang)
         plt.show()
-
-    def generate_jacobian(self, element: int):
-        """
-        Function to generate the Jacobian J = ∂(x,y)/∂(r, s)\n
-        for transforming from the reference triangle to global coordinates.\n
-        element: The target element (triangle) of the transformation from the reference element.
-        """
-        p1, p2, p3 = self.nodes[self.triang[element]]
-        J = np.column_stack([p2-p1, p3-p1])
-        return J
-
-    def reference_to_global_transformation(self, eta, element, J=None):
-        """
-        Function transforming reference coordinates eta = [r, s] to 
-        global coordinates [x, y] for a given element.
-        eta: np.array([r, s])
-        element: int in range(Num_elements)
-        J: If the transformation is called repeatedly on the same element, 
-           one can provide the already calculated Jacobian.
-           TODO: Do we want to return the calculated Jacobian as well? Think No.
-        """
-        translation = self.nodes[self.triang[element][0]]
-        if J is None:
-            J = self.generate_jacobian(element)
-        return J @ np.array(eta) + translation
-    
-    def global_to_reference_transformation(self, p, element, J_inv=None):
-        """
-        Function transforming global coordinates p = [x, y] to 
-        reference coordinates eta = [r, s] for a given element.
-        p: np.array([x, y])
-        element: int in range(Num_elements)
-        J_inv: If the transformation is called repeatedly on the same element,
-               one can provide the already calculated inverse Jacobian.
-               TODO: Do we want to return the calculated inverse-Jacobian as well? Think No.
-        """
-        translation = self.nodes[self.triang[element][0]]
-        if J_inv is None:
-            J_inv = la.inv(self.generate_jacobian(element))
-        return J_inv @ (p - translation)
 
     def A_i_j(self, i, j, J_inv_T, elem_area):
         """

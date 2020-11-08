@@ -413,7 +413,7 @@ def test_error_neumann():
     for N in Ns:
 
         FEM_solver = Poisson2DSolver(N=N, f=f, g_D=g_D, g_N=g_N, class_BC=class_BC, eps=1.0e-14)
-        FEM_solver.solve_direct_dirichlet()
+        FEM_solver.solve()
 
         e = FEM_solver.error_est(u_ex)
 

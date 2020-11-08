@@ -8,8 +8,8 @@ import matplotlib.tri as mtri
 from mpl_toolkits.mplot3d import Axes3D
 
 # Our code:
-from fem_2d_solver import Poisson2DSolver, matprint, BCtype
-from gaussian_quad import quadrature2D
+from .fem_2d_solver import Poisson2DSolver
+from ..tools import matprint, BCtype, quadrature2D
 
 
 def beta(x, y):
@@ -144,16 +144,13 @@ def neumann_convergence(show=True, quad_points=4):
     plt.title("Relative error, mixed BC's")
     plt.legend()
 
-
     if show:
         plt.show()
 
 
-
-if __name__ == '__main__':
-
+def show_dirichlet_and_neumann_convergence():
+    print("Showing convergence rates for problems with Dirichlet and Neumann Boundary Conditions.")
     dirichlet_convergence(show=False, quad_points=4)
     neumann_convergence(show=False, quad_points=4)
     plt.show()
     
-    pass

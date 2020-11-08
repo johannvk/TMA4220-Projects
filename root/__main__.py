@@ -1,4 +1,4 @@
-from .project_1.tasks import run_tasks as run_task_1
+from .project_1.tasks import run_tasks as run_tasks_1
 from .project_1.tests import test_main
 from .project_2.tasks import save_material_vibration_modes
 
@@ -7,7 +7,7 @@ from .project_2.tests import test_elasticity_solver, test_animation, test_animat
 
 def main():
     print("The best FEM package there is!")
-    # run_task_1()
+    # run_tasks_1()
     # test_main()
     # test_elasticity_solver(N=10, area="plate")
     # test_elasticity_solver(N=25, area="plate")
