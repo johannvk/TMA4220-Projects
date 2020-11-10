@@ -599,7 +599,8 @@ class Elasticity2DSolver(Triangular2DFEM):
         
         if show:
             plt.show()
-
+            return 
+        
         # Clean up memory
         fig.clear()
         plt.close(fig)
