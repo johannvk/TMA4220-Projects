@@ -103,8 +103,11 @@ def test_full_solver(N=10, area="plate"):
         else:
             return -1
 
+    def rho_func(p):
+        return 100*abs(p[0] + p[1])*(rho) + 10.0
+
     model_dict = {"N": N, "f": f, "g_D": g_D, "g_N": lambda _: False,
-                  "class_BC": class_BC, "E": E, "nu": nu, "rho": rho, "area": area}
+                  "class_BC": class_BC, "E": E, "nu": nu, "rho": rho_func, "area": area}
     
     solver = Elasticity2DSolver.from_dict(model_dict)
 

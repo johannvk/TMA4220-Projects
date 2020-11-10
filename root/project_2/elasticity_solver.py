@@ -61,8 +61,10 @@ class Elasticity2DSolver(Triangular2DFEM):
         # (ϕ_i_0 = [ϕ_i, 0], ϕ_i_1 = [0, ϕ_i]), i = 1, .., num_nodes.
         self.num_basis_functions = 2*self.num_nodes  
 
+        # Internal solver variables:
         self.quad_points = quad_points
-        self.area = area  # A bit superfluous. 
+        self.area = area  # A bit superfluous.
+        self.d_pairs = ((0, 0), (0, 1), (1, 0), (1, 1))
 
         # Problem source- and BC-functions:
         self.f = f
@@ -415,14 +417,18 @@ class Elasticity2DSolver(Triangular2DFEM):
         # Dot product (ϕ_i)^T ⋅ ϕ_j = (1 - d_i)*(1 - d_j)ϕ_i*ϕ_j + (d_i)*(d_j)ϕ_i*ϕ_j.
         if d_i != d_j:
             return 0.0
-        phi_i, phi_j = self.basis_functions[i_loc], self.basis_functions[j_loc]
 
         # As we integrate over the reference triangle, 
         # we can use the basis function definitions directly:
-        integrand = lambda p: phi_i(p)*phi_j(p)
+        phi_i, phi_j = self.basis_functions[i_loc], self.basis_functions[j_loc]
+
+        # Assume that this function is only used when 'self.rho' is callable. 
+        integrand = lambda p: self.rho(p)*phi_i(p)*phi_j(p)
         p1, p2, p3 = self.reference_triangle_nodes
         I = quadrature2D(integrand, p1, p2, p3, Nq=self.quad_points)
-        return self.rho*I*det_J_k
+
+        # Scale the integral up by the determinant of the Element-Jacobian:
+        return I*det_J_k
 
     def generate_M_ref(self):
         # 36 interactions.
@@ -437,10 +443,55 @@ class Elasticity2DSolver(Triangular2DFEM):
 
         return M_ref
 
+    def M_h_element_contribution(self, element: list, det_J_k: np.ndarray, constant_density: bool, M_ref: np.ndarray):
+        
+        if constant_density:
+            # Exploit symmetry of the (A_h)_sub-matrix about i=j.
+            # Only compute the upper-triangular part i <= j.
+
+            for i_loc, node_i in enumerate(element):
+                # All values scaled by det_J_k compared to M_ref: 
+                
+                for (d_i, d_j) in self.d_pairs:
+                    i_i_value = det_J_k*M_ref[2*i_loc + d_i, 2*i_loc + d_j]
+                    self.M_h[2*node_i + d_i, 2*node_i + d_j] += i_i_value
+
+                for j_loc in range(i_loc+1, 3):
+                    node_j = element[j_loc]
+                    
+                    for (d_i, d_j) in self.d_pairs:
+                        i_j_value = det_J_k*M_ref[2*i_loc + d_i, 2*j_loc + d_j]
+
+                        self.M_h[2*node_i + d_i, 2*node_j + d_j] += i_j_value
+                        self.M_h[2*node_j + d_j, 2*node_i + d_i] += i_j_value
+        
+        else:
+            # Must integrate density over each element per basis function. 
+            for i_loc, node_i in enumerate(element):
+                
+                for (d_i, d_j) in self.d_pairs:
+                    i_i_value = self.M_i_j(i_loc, i_loc, d_i, d_j, det_J_k)
+                    self.M_h[2*node_i + d_i, 2*node_i + d_j] += i_i_value
+
+                for j_loc in range(i_loc+1, 3):
+                    node_j = element[j_loc]
+                    
+                    for (d_i, d_j) in self.d_pairs:
+                        i_j_value = self.M_i_j(i_loc, j_loc, d_i, d_j, det_J_k)
+
+                        self.M_h[2*node_i + d_i, 2*node_j + d_j] += i_j_value
+                        self.M_h[2*node_j + d_j, 2*node_i + d_i] += i_j_value
+
     def generate_M_h(self):
         
-        d_pairs = ((0, 0), (0, 1), (1, 0), (1, 1))
-        M_ref = self.generate_M_ref()
+        if callable(self.rho):
+            # Assumed callable on the form: 
+            # self.rho([x, y]) -> ℜ.
+            constant_density = False
+            M_ref = None
+        else:
+            constant_density = True
+            M_ref = self.generate_M_ref()
 
         self.M_h = sp.dok_matrix((self.num_basis_functions, self.num_basis_functions))
 
@@ -450,27 +501,10 @@ class Elasticity2DSolver(Triangular2DFEM):
             # TODO: Avoid generating all Jacobians twice for A_h and M_h.
             J = self.generate_jacobian(k)
             det_J_k = la.det(J)
-            
-            # Exploit symmetry of the (A_h)_sub-matrix about i=j.
-            # Only compute the upper-triangular part i <= j.
-    
-            for i_loc, node_i in enumerate(element):
-                # All values scaled by det_J_k compared to M_ref: 
-                
-                for (d_i, d_j) in d_pairs:
-                    i_i_value = det_J_k*M_ref[2*i_loc + d_i, 2*i_loc + d_j]
-                    self.M_h[2*node_i + d_i, 2*node_i + d_j] += i_i_value
+            self.M_h_element_contribution(element=element, det_J_k=det_J_k, 
+                                          constant_density=constant_density, M_ref=M_ref)
 
-                for j_loc in range(i_loc+1, 3):
-                    node_j = element[j_loc]
-                    
-                    for (d_i, d_j) in d_pairs:
-                        i_j_value = det_J_k*M_ref[2*i_loc + d_i, 2*j_loc + d_j]
-
-                        self.M_h[2*node_i + d_i, 2*node_j + d_j] += i_j_value
-                        self.M_h[2*node_j + d_j, 2*node_i + d_i] += i_j_value
-
-        # Convert A_h to csr-format for ease of calculations later:
+        # Convert M_h to csr-format for ease of calculations later:
         self.M_h = self.M_h.tocsr()
 
     def solve_vibration_modes(self, num=20):
@@ -541,6 +575,7 @@ class Elasticity2DSolver(Triangular2DFEM):
         
         if show:
             plt.show()
+            return
 
         # Clean up memory
         fig.clear()
