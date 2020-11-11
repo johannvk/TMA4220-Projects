@@ -669,7 +669,7 @@ class Elasticity2DSolver(Triangular2DFEM):
 
         fig.suptitle(title)
 
-        plt.subplots_adjust(left=0.05, wspace=0, hspace=0, right=0.85)
+        plt.subplots_adjust(left=0.10, bottom=0.08, wspace=0, hspace=0, right=0.87)
         K = dims[0] * dims[1]
 
         for i, phi in enumerate(np.linspace(0, np.pi, K)):
@@ -677,8 +677,14 @@ class Elasticity2DSolver(Triangular2DFEM):
                     norm=norm, show=False, ax=axs.flatten()[i])
 
         cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=None), ax=axs[:,dims[1]-1])
-        cbar.ax.get_yaxis().labelpad = 25
+        cbar.ax.get_yaxis().labelpad = 30
         cbar.set_label(r"Mean Total Stress $\sigma$ [Pa]", rotation=270, fontsize=24)
+
+        labax = fig.add_subplot(111, frameon=False)
+        # hide tick and tick label of the big axis
+        labax.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+        labax.set_xlabel("$x \, [m]$")
+        labax.set_ylabel("$y \, [m]$")
 
         if savename is not None:
             fig.savefig(f"root/project_2/figures/{savename}.png", dpi=dpi)
