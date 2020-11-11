@@ -216,7 +216,7 @@ class Elasticity2DSolver(Triangular2DFEM):
         else:
             return plot
 
-    def display_vector_field(self, u, title=None):
+    def display_vector_field(self, u=None, title=None):
         """
         Display a vector field over the domain Ω.\n
             u([x, y]) → [u_x(x, y), u_y(x, y)]
@@ -224,10 +224,13 @@ class Elasticity2DSolver(Triangular2DFEM):
         # Vector X- and Y-components:
         if callable(u):
             vectors = np.array([u(p) for p in self.nodes])
-        else:
+        elif type(u) is np.ndarray:
             # Assume u contains displacement of each node:
             # u.shape = (num_nodes, 2)
             vectors = np.array([u_p for u_p in u])
+        else:
+            # Use internal solution u_h:
+            vectors = np.array([u_p for u_p in self.u_h.reshape(self.num_nodes, 2)])
 
         plt.rcParams.update({'font.size': 18})
 
@@ -875,21 +878,50 @@ class Elasticity2DSolver(Triangular2DFEM):
         self.u_h = np.zeros(self.num_nodes)
         self.u_h[~self.dirichlet_BC_mask] = reduced_u_h
         self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
+    
+    def fem_solution(self, element: list, F_inv: callable=None, k=None):
+        # Assume one has solved for the coefficients self.u_h:
+        # assert isinstance(self.u_h, np.ndarray)
+        if F_inv is None:
+            if k is not None:
+                F_inv = lambda p: self.global_to_reference_transformation(p, k, J_inv=None)
+            else:
+                raise ValueError("Either the inverse coordinate transform F_inv or element index k must be given.")
 
-    def error_est(self, u_ex, quad_points=None):
+        # Retrieve coefficients of basis function in each vector component:
+        u_xs = self.u_h[[2*node     for node in element]]
+        u_ys = self.u_h[[2*node + 1 for node in element]]
+        
+        phi_funcs = [lambda p: phi(F_inv(p)) for phi in self.basis_functions]
+
+        def u_h_func(p):
+            x_comp = sum([u_xs[i]*phi_funcs[i](p) for i in (0, 1, 2)])
+            y_comp = sum([u_ys[i]*phi_funcs[i](p) for i in (0, 1, 2)])
+            return np.array([x_comp, y_comp])
+
+        return u_h_func
+
+
+    def L2_norm_error(self, u_ex, quad_points=None):
         # TODO: UPDATE
-        raise NotImplementedError("Need to update function for ElasticitySolver2D")
+        # raise NotImplementedError("Need to update function for ElasticitySolver2D")
         assert isinstance(self.u_h, np.ndarray)
 
         if quad_points == None:
             quad_points = self.quad_points
 
-        E = 0
+        E = 0.0
 
         """ For each element in triangulation. """ 
         for k, element in enumerate(self.triang):
+            
+            J_inv = la.inv(self.generate_jacobian(k))
 
-            F_inv = lambda p: self.global_to_reference_transformation(p, k, J_inv=None)
+            F_inv = lambda p: self.global_to_reference_transformation(p, k, J_inv=J_inv)
+
+            u_h_func = self.fem_solution(element, F_inv=F_inv)
+
+            """
             p1, p2, p3 = element
             x1 = self.nodes[p1]
             x2 = self.nodes[p2]
@@ -901,10 +933,13 @@ class Elasticity2DSolver(Triangular2DFEM):
 
             
             phi1, phi2, phi3 = self.basis_functions
+            """
+
             """ err = ( u_h - u_ex )**2 """
-            err = lambda x: ( u1*phi1(F_inv(x)) + u2*phi2(F_inv(x)) + u3*phi3(F_inv(x)) - u_ex(x) )**2
+            err = lambda p: ( u_h_func(p) - u_ex(p) )**2
             
             """ Gauss quadrature approximation to contribution to square error from element k """
+            x1, x2, x3 = [self.nodes[node] for node in element]
             E += quadrature2D(err, x1, x2, x3, Nq=quad_points)
 
         return np.sqrt(E)

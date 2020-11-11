@@ -58,7 +58,7 @@ class Triangular2DFEM():
             J = self.generate_jacobian(element)
         return J @ np.array(eta) + translation
     
-    def global_to_reference_transformation(self, p, element, J_inv=None):
+    def global_to_reference_transformation(self, p, element: int, J_inv=None):
         """
         Function transforming global coordinates p = [x, y] to 
         reference coordinates eta = [r, s] for a given element.
