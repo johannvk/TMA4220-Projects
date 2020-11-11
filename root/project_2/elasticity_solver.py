@@ -75,6 +75,10 @@ class Elasticity2DSolver(Triangular2DFEM):
         self.E = E
         self.nu = nu
         self.rho = rho
+        if callable(rho):
+            self.constant_density = False
+        else:
+            self.constant_density = True
 
         self.class_BC = class_BC
         self.eps = eps  # Big-Number Epsilon.
@@ -426,7 +430,10 @@ class Elasticity2DSolver(Triangular2DFEM):
         phi_i, phi_j = self.basis_functions[i_loc], self.basis_functions[j_loc]
 
         # Assume that this function is only used when 'self.rho' is callable. 
-        integrand = lambda p: self.rho(p)*phi_i(p)*phi_j(p)
+        if self.constant_density:
+            integrand = lambda p: self.rho*phi_i(p)*phi_j(p)
+        else:
+            integrand = lambda p: self.rho(p)*phi_i(p)*phi_j(p)
         p1, p2, p3 = self.reference_triangle_nodes
         I = quadrature2D(integrand, p1, p2, p3, Nq=self.quad_points)
 
@@ -446,9 +453,9 @@ class Elasticity2DSolver(Triangular2DFEM):
 
         return M_ref
 
-    def M_h_element_contribution(self, element: list, det_J_k: np.ndarray, constant_density: bool, M_ref: np.ndarray):
+    def M_h_element_contribution(self, element: list, det_J_k: np.ndarray, M_ref: np.ndarray):
         
-        if constant_density:
+        if self.constant_density:
             # Exploit symmetry of the (A_h)_sub-matrix about i=j.
             # Only compute the upper-triangular part i <= j.
 
@@ -456,14 +463,14 @@ class Elasticity2DSolver(Triangular2DFEM):
                 # All values scaled by det_J_k compared to M_ref: 
                 
                 for (d_i, d_j) in self.d_pairs:
-                    i_i_value = det_J_k*M_ref[2*i_loc + d_i, 2*i_loc + d_j]
+                    i_i_value = det_J_k * M_ref[2*i_loc + d_i, 2*i_loc + d_j]
                     self.M_h[2*node_i + d_i, 2*node_i + d_j] += i_i_value
 
                 for j_loc in range(i_loc+1, 3):
                     node_j = element[j_loc]
                     
                     for (d_i, d_j) in self.d_pairs:
-                        i_j_value = det_J_k*M_ref[2*i_loc + d_i, 2*j_loc + d_j]
+                        i_j_value = det_J_k * M_ref[2*i_loc + d_i, 2*j_loc + d_j]
 
                         self.M_h[2*node_i + d_i, 2*node_j + d_j] += i_j_value
                         self.M_h[2*node_j + d_j, 2*node_i + d_i] += i_j_value
@@ -487,15 +494,11 @@ class Elasticity2DSolver(Triangular2DFEM):
 
     def generate_M_h(self):
         
-        if callable(self.rho):
-            # Assumed callable on the form: 
-            # self.rho([x, y]) -> ℜ.
-            constant_density = False
-            M_ref = None
-        else:
-            constant_density = True
+        if self.constant_density:
             M_ref = self.generate_M_ref()
-
+        else:
+            M_ref = None
+           
         self.M_h = sp.dok_matrix((self.num_basis_functions, self.num_basis_functions))
 
         # Generate the mass matrix.
@@ -504,8 +507,7 @@ class Elasticity2DSolver(Triangular2DFEM):
             # TODO: Avoid generating all Jacobians twice for A_h and M_h.
             J = self.generate_jacobian(k)
             det_J_k = la.det(J)
-            self.M_h_element_contribution(element=element, det_J_k=det_J_k, 
-                                          constant_density=constant_density, M_ref=M_ref)
+            self.M_h_element_contribution(element=element, det_J_k=det_J_k, M_ref=M_ref)
 
         # Convert M_h to csr-format for ease of calculations later:
         self.M_h = self.M_h.tocsr()
@@ -647,7 +649,27 @@ class Elasticity2DSolver(Triangular2DFEM):
         gc.collect()
 
         return
+
+    def vibration_stress_mosaic(self, k, alpha=1, dims=(3,3), figsize=(10,10), show=None, savename=None, title=None):
     
+        if k > self.num_eigenpairs - 1:
+            raise ValueError(f"Too high an eigen-number. Have only solved for {self.num_eigenpairs} eigenpairs.")
+
+        displacement_vec = self.retrieve_vibration_eigenvector(k)
+
+        fig, axs = plt.subplots(dims, figsize=figsize)
+
+        K = dims[0] * dims[1]
+
+        for i, phi in enumerate(np.linspace(0, np.pi, K)):
+            self.display_mesh_stress(displacement=alpha*np.cos(phi)*displacement_vec,
+                    norm=None, show=False, ax=axs[i])
+
+        if show:
+            plt.show()
+
+        return
+
     def retrieve_vibration_eigenvector(self, k):
         if not self.applied_BC:
             displacement_vec = self.vibration_eigenvectors[k]

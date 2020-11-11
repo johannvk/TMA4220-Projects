@@ -129,3 +129,15 @@ def test_full_solver(N=10, area="plate"):
 
     # solver.display_vector_field(u=solver.u_h, title="FEM solution")
     # solver.display_mesh_stress(displacement=solver.u_h, show=True)
+
+def test_mosaic(N=10, k=5, area="plate", figsize=(10,10), dims=(3,3)):
+
+    model_dict = {"N": N, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
+                  "class_BC": 12.0, "E": 10.0, "nu": 0.22, "rho": 1.0, "area": area}    
+    solver = Elasticity2DSolver.from_dict(model_dict)
+    solver.solve_vibration_modes(num=k+1)
+
+    solver.vibration_stress_mosaic(k=k, dims=dims, figsize=figsize, show=True)
+
+    return
+
