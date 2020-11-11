@@ -786,123 +786,6 @@ class Elasticity2DSolver(Triangular2DFEM):
         self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
         self.u_h = self.u_h.reshape((self.num_nodes, 2))
     
-    def apply_boundary_conditions(self):
-        """
-        Apply boundary conditions element-wise. Take care to avoid
-        applying Dirichlet boundary conditions for a node more than once.
-        """
-        # TODO: UPDATE
-        raise NotImplementedError("Need to update function for ElasticitySolver2D")
-
-        for k, element in zip(self.edge_triangle_indexes, self.edge_triangles):
-            
-            element_edge_nodes = [node for node in element if node in self.edge_nodes]
-            edge_bc_types = [self.class_BC(self.nodes[node_i]) for node_i in element]
-
-            # Should never have more than two edge nodes in an element:
-            assert(len(element_edge_nodes) in (1, 2))            
-            
-            F_inv = lambda p: self.global_to_reference_transformation(p, element=k)
-
-            for i, (node, bc_type) in enumerate(zip(element, edge_bc_types)):
-                # Only add boundary conditions for edge nodes:
-                if node not in element_edge_nodes:
-                    continue
-                
-                # Ensure that the Dirichlet node's bc has not been applied yet
-                if bc_type == BCtype.Dir and not self.dirichlet_BC_mask[node]:
-                    self.apply_node_dirichlet_bc(node)
-
-                elif bc_type == BCtype.Neu:
-                    
-                    # No contribution if there is only one edge node in the element:
-                    if len(element_edge_nodes) == 1:
-                        continue
-                    
-                    a = self.nodes[element_edge_nodes[0]]
-                    b = self.nodes[element_edge_nodes[1]]
-
-                    def integrand(p):
-                        phi = self.basis_functions[i](F_inv(p))
-                        g_n = self.g_N(p)
-                        return g_n*phi
-                    
-                    neumann_contribution = quadrature1D(integrand, a, b, Nq=self.quad_points)
-
-                    # Add contribution from integrating over the element outer edge:
-                    self.F_h[node] += neumann_contribution
-                    
-        # Remove redundant degrees of freedom from A_h and F_h:
-        F_mask = np.ones(len(self.F_h), dtype=bool)
-        F_mask[self.dirichlet_BC_basis_functions] = False
-        self.F_h = self.F_h[F_mask]
-
-        self.A_h = delete_from_csr(self.A_h, row_indices=self.dirichlet_BC_basis_functions, 
-                                             col_indices=self.dirichlet_BC_basis_functions)
-        self.applied_BC = True
-
-    def apply_big_number_dirichlet(self, eps=None):
-        """
-        Apply pure Dirichlet boundary conditions to A_h and F_h 
-        using the "Big Number"-approach.
-        """
-        # TODO: UPDATE
-        raise NotImplementedError("Need to update function for ElasticitySolver2D")
-
-        if self.A_h is None or self.F_h is None:
-            print("Cannot apply boundary conditions before A_h and F_h are constructed!")
-            return
-        if eps is None:
-            eps = self.eps
-
-        eps_inv = 1.0/eps        
-        for node in self.edge_nodes:
-            p = self.nodes[node]
-            class_BC = self.class_BC(p)
-
-            if class_BC == BCtype.Dir:
-                """
-                If node is a Dirichlet node
-                """
-                g_D = self.g_D(p)
-                self.A_h[node, node] = eps_inv
-                self.F_h[node] = g_D*eps_inv
-        
-        self.applied_BC = True
-
-    def solve_big_number_dirichlet(self):
-        # TODO: UPDATE
-        raise NotImplementedError("Need to update function for ElasticitySolver2D")
-        self.generate_A_h()
-        self.generate_F_h()
-        self.apply_big_number_dirichlet()
-        self.u_h = sp.linalg.spsolve(self.A_h, self.F_h)
-
-    def solve(self):
-        # TODO: UPDATE
-        raise NotImplementedError("Need to update function for ElasticitySolver2D")
-        self.generate_A_h()
-        self.generate_F_h()
-        self.apply_boundary_conditions()
-
-        reduced_u_h = sp.linalg.spsolve(self.A_h, self.F_h)
-        self.u_h = np.zeros(self.num_nodes)
-        self.u_h[~self.dirichlet_BC_mask] = reduced_u_h
-        self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
-
-    def solve_direct_dirichlet_CG(self, TOL=1e-5):
-        # TODO: UPDATE
-        raise NotImplementedError("Need to update function for ElasticitySolver2D")
-        self.generate_A_h()
-        self.generate_F_h()
-        self.apply_direct_dirichlet()
-        
-        reduced_u_h, exit_code = sp.linalg.cg(self.A_h, self.F_h, tol=TOL)
-        assert exit_code == 0 
-        self.u_h = np.zeros(self.num_nodes)
-        self.u_h[~self.dirichlet_BC_mask] = reduced_u_h
-        self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
-    
     def find_h(self):
         h = 0
 
@@ -1015,7 +898,7 @@ class Elasticity2DSolver(Triangular2DFEM):
 
             F_inv = lambda p: self.global_to_reference_transformation(p, k, J_inv=J_inv)
 
-            u_h_func = self.fem_solution(element, F_inv=F_inv)
+            u_h_func = self.fem_solution(element=element, F_inv=F_inv)
 
             """ err = || u_h - u_ex ||₂**2 """
             err = lambda p: la.norm(u_h_func(p) - u_ex(p), ord=2)**2

@@ -59,15 +59,23 @@ def L2_convergence(area="plate", show=True):
     betaD = beta(np.log(hs), np.log(errors_rel))
     print(f'Dirichlet: beta = {betaD}')
     
-    plt.rcParams.update({'font.size': 20, 'figure.figsize': (12, 10)})
+    plt.rcParams.update({'font.size': 20, 'figure.figsize': (16, 12)})
 
     plt.figure()
-    plt.loglog(hs, errors_rel, 'k-', label=r"$||u - u_h||_{L_2(\Omega)} / ||u||_{L_2(\Omega)}$")
-    plt.text(hs[2], 0.8*errors_rel[2], fr"Slope $\approx$ {betaD:.2f}")
+    plt.title("Relative error, Hom. Dirichlet BC's")
+    plt.loglog(hs, errors_rel, 'k-', lw=2.0, label=r"$||u - u_h||_{L_2(\Omega)} / ||u||_{L_2(\Omega)}$")
+    plt.text(hs[2], 0.75*errors_rel[2], fr"Slope $\approx$ {betaD:.2f}")
     plt.xlabel("$h$")
-    plt.title("Relative error, Dirichlet BC's")
-    plt.legend()
+    plt.ylabel(r"$||u - u_h||_{L_2(\Omega)} / ||u||_{L_2(\Omega)}$")
 
+    ax1 = plt.gca()    
+    start_y, end_y = ax1.get_ylim()
+    ax1.set_ylim(0.5*start_y, end_y)
+
+    plt.grid(True, which="both", ls="-", zorder=-10)
+    plt.legend(loc="lower right")
+    print("What!")
     if show:
         plt.show()
+    
     
