@@ -647,20 +647,47 @@ class Elasticity2DSolver(Triangular2DFEM):
 
         return
 
-    def vibration_stress_mosaic(self, k, alpha=1, dims=(3,3), figsize=(10,10), show=None, savename=None, title=None):
+    def vibration_stress_mosaic(self, k, alpha=1, dims=(3,3), figsize=(10,12), dpi=None, show=None,
+                                savename=None, title=None):
     
         if k > self.num_eigenpairs - 1:
             raise ValueError(f"Too high an eigen-number. Have only solved for {self.num_eigenpairs} eigenpairs.")
 
         displacement_vec = self.retrieve_vibration_eigenvector(k)
 
-        fig, axs = plt.subplots(dims, figsize=figsize)
+        max_stretch = self.find_max_stress(displacement=displacement_vec*alpha)
 
+        # Set a bigger font size for text:
+        plt.rcParams.update({'font.size': 20})
+
+        norm = mpl.colors.Normalize(vmin=-max_stretch, vmax=max_stretch)
+
+        fig, axs = plt.subplots(dims[0], dims[1], figsize=figsize, sharex=True, sharey=True)
+        
+        if title is None:
+            title = f"Progression of vibration-mode {k}"
+
+        fig.suptitle(title)
+
+        plt.subplots_adjust(left=0.05, wspace=0, hspace=0, right=0.85)
         K = dims[0] * dims[1]
 
         for i, phi in enumerate(np.linspace(0, np.pi, K)):
             self.display_mesh_stress(displacement=alpha*np.cos(phi)*displacement_vec,
-                    norm=None, show=False, ax=axs[i])
+                    norm=norm, show=False, ax=axs.flatten()[i])
+
+        cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=None), ax=axs[:,dims[1]-1])
+        cbar.ax.get_yaxis().labelpad = 25
+        cbar.set_label(r"Mean Total Stress $\sigma$ [Pa]", rotation=270, fontsize=24)
+
+        if savename is not None:
+            fig.savefig(f"root/project_2/figures/{savename}.png", dpi=dpi)
+
+        if show is None:
+            if savename is None:
+                show = True
+            else:
+                show = False
 
         if show:
             plt.show()
