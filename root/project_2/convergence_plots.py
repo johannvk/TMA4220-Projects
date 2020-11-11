@@ -40,8 +40,6 @@ def L2_convergence(area="plate", show=True):
     errors = np.zeros(len(Ns))
     hs = np.zeros(len(Ns))
 
-    test_k = 1
-
     for i, n in enumerate(Ns):
         print(f"Dirichlet: N = {n}")
         model_dict = {"N": n, "f": f, "g_D": g_D, "g_N": lambda _: False,
@@ -49,16 +47,6 @@ def L2_convergence(area="plate", show=True):
         
         solver = Elasticity2DSolver.from_dict(model_dict)
         solver.solve_direct_dirichlet()
-        solver.display_L2_error(u_ex=u)
-        # solver.display_single_element_error(k=test_k, u=lambda p: u(p) - solver.fem_solution(k=test_k)(p))
-        # solver.display_vector_field(title="FEM solution")
-        # solver.display_vector_field(u=u, title="Exact solution")
-        # solver.display_mesh_stress(displacement=np.array([u(p) for p in solver.nodes]))
-
-        # Show erronous stresses:
-        # error_displacement = solver.u_h - np.array([u(p) for p in solver.nodes])
-        # solver.display_mesh_stress(displacement=error_displacement)
-        # solver.display_vector_field(u=error_displacement, title="Error vector field.")
 
         errors[i] = solver.L2_norm_error(u_ex=u)
         hs[i] = solver.find_h()
@@ -71,7 +59,7 @@ def L2_convergence(area="plate", show=True):
     betaD = beta(np.log(hs), np.log(errors_rel))
     print(f'Dirichlet: beta = {betaD}')
     
-    plt.rcParams.update({'font.size': 14})
+    plt.rcParams.update({'font.size': 20, 'figure.figsize': (12, 10)})
 
     plt.figure()
     plt.loglog(hs, errors_rel, 'k-', label=r"$||u - u_h||_{L_2(\Omega)} / ||u||_{L_2(\Omega)}$")

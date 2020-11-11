@@ -435,6 +435,7 @@ class Elasticity2DSolver(Triangular2DFEM):
             integrand = lambda p: self.rho*phi_i(p)*phi_j(p)
         else:
             integrand = lambda p: self.rho(p)*phi_i(p)*phi_j(p)
+        
         p1, p2, p3 = self.reference_triangle_nodes
         I = quadrature2D(integrand, p1, p2, p3, Nq=self.quad_points)
 
@@ -920,7 +921,6 @@ class Elasticity2DSolver(Triangular2DFEM):
 
     def fem_solution(self, element: list = None, F_inv: callable = None, k: int = None):
         # Assume one has solved for the coefficients self.u_h:
-        # assert isinstance(self.u_h, np.ndarray)
         if F_inv is None:
             if k is not None:
                 F_inv = lambda p: self.global_to_reference_transformation(p, k, J_inv=None)
@@ -967,8 +967,6 @@ class Elasticity2DSolver(Triangular2DFEM):
         errors = np.array([la.norm(u(p) - u_h_func(p), ord=2)**2 for p in internal_nodes])
         X, Y = internal_nodes[:, 0], internal_nodes[:, 1]
 
-        # plt.rcParams.update({'font.size': 18})
-
         if ax is None:
             fig = plt.figure(figsize=(14, 14))
             fig.suptitle("Single Element Vector Field Plot")
@@ -995,7 +993,6 @@ class Elasticity2DSolver(Triangular2DFEM):
     def display_L2_error(self, u_ex: callable):
 
         fig, ax = plt.subplots(figsize=(12, 12), subplot_kw={'projection': '3d'})
-
         for k, element in enumerate(self.triang):
 
             self.display_single_element_error(k, u=u_ex, ax=ax, show=False)
