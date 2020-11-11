@@ -143,3 +143,13 @@ def test_mosaic(N=10, k=5, area="plate", figsize=(10,10), dims=(3,3), alpha=1,
 
     return
 
+def test_show_frequencies(N=10, num=20, area="plate", savename=None, show=None):
+
+    model_dict = {"N": N, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
+                  "class_BC": 12.0, "E": 10.0, "nu": 0.22, "rho": 1.0, "area": area}    
+    solver = Elasticity2DSolver.from_dict(model_dict)
+    solver.solve_vibration_modes(num=num)
+
+    solver.show_frequencies()
+    return
+

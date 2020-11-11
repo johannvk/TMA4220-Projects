@@ -700,6 +700,41 @@ class Elasticity2DSolver(Triangular2DFEM):
 
         return
 
+    def show_frequencies(self, show=None, savename=None, title=None):
+        if self.vibration_frequencies is None:
+            raise Exception("Need to calculate vibration frequencies first.")
+
+        if title is None:
+            title = "Vibration-frequencies"
+
+        fig, axs = plt.subplots(1,2)
+
+        vibs = self.vibration_frequencies
+        axs[0].plot(np.arange(vibs.shape[0]), vibs, 'k.')
+        axs[0].set_title("$\omega_k$")
+
+        vibs = self.vibration_frequencies[3:]
+        n_max = np.max(vibs / vibs[0])
+        axs[1].plot(np.arange(vibs.shape[0]), vibs / vibs[0], 'k.' )
+        for i in range(1, int(n_max) + 1):
+            axs[1].axhline(y=i, color='black', lw=0.4)
+        axs[1].set_title("$\omega_k / \omega_0$")
+
+        if savename is not None:
+            fig.savefig(f"root/project_2/figures/{savename}.png")
+
+        if show is None:
+            if savename is None:
+                show = True
+            else:
+                show = False
+
+        if show:
+            plt.show()
+
+        return
+
+
     def retrieve_vibration_eigenvector(self, k):
         if not self.applied_BC:
             displacement_vec = self.vibration_eigenvectors[k]
