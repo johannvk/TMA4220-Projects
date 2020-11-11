@@ -1,7 +1,7 @@
 import numpy as np 
 import scipy.integrate as sciint
 
-from fem_2d_solver import Poisson2DSolver
+from ..project_1.fem_2d_solver import Poisson2DSolver
 
 from gaussian_quad import quadrature1D, quadrature2D, \
      gaussquad1d_points_weights, gaussquad2d_points_weights

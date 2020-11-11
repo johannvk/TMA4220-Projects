@@ -7,6 +7,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.tri as mtri
 from matplotlib.animation import ArtistAnimation
+from mpl_toolkits.mplot3d import axes3d
 
 from itertools import product as iter_product
 
@@ -128,7 +129,7 @@ class Elasticity2DSolver(Triangular2DFEM):
 
             element_triang = self.triang[triangle_indices]
 
-        else:
+        elif elements is not None:
             element_triang = self.triang[elements]
         
         nodes_x = np.copy(self.nodes[:, 0])
@@ -220,7 +221,7 @@ class Elasticity2DSolver(Triangular2DFEM):
         else:
             return plot
 
-    def display_vector_field(self, u, title=None):
+    def display_vector_field(self, u=None, title=None):
         """
         Display a vector field over the domain Ω.\n
             u([x, y]) → [u_x(x, y), u_y(x, y)]
@@ -228,10 +229,13 @@ class Elasticity2DSolver(Triangular2DFEM):
         # Vector X- and Y-components:
         if callable(u):
             vectors = np.array([u(p) for p in self.nodes])
-        else:
+        elif type(u) is np.ndarray:
             # Assume u contains displacement of each node:
             # u.shape = (num_nodes, 2)
             vectors = np.array([u_p for u_p in u])
+        else:
+            # Use internal solution u_h:
+            vectors = np.array([u_p for u_p in self.u_h])
 
         plt.rcParams.update({'font.size': 18})
 
@@ -431,6 +435,7 @@ class Elasticity2DSolver(Triangular2DFEM):
             integrand = lambda p: self.rho*phi_i(p)*phi_j(p)
         else:
             integrand = lambda p: self.rho(p)*phi_i(p)*phi_j(p)
+        
         p1, p2, p3 = self.reference_triangle_nodes
         I = quadrature2D(integrand, p1, p2, p3, Nq=self.quad_points)
 
@@ -849,152 +854,125 @@ class Elasticity2DSolver(Triangular2DFEM):
         self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
         self.u_h = self.u_h.reshape((self.num_nodes, 2))
     
-    def apply_boundary_conditions(self):
-        """
-        Apply boundary conditions element-wise. Take care to avoid
-        applying Dirichlet boundary conditions for a node more than once.
-        """
-        # TODO: UPDATE
-        raise NotImplementedError("Need to update function for ElasticitySolver2D")
+    def find_h(self):
+        h = 0
 
-        for k, element in zip(self.edge_triangle_indexes, self.edge_triangles):
-            
-            element_edge_nodes = [node for node in element if node in self.edge_nodes]
-            edge_bc_types = [self.class_BC(self.nodes[node_i]) for node_i in element]
+        for k, element in enumerate(self.triang):
 
-            # Should never have more than two edge nodes in an element:
-            assert(len(element_edge_nodes) in (1, 2))            
-            
-            F_inv = lambda p: self.global_to_reference_transformation(p, element=k)
+            p1, p2, p3 = element
+            x1 = self.nodes[p1]
+            x2 = self.nodes[p2]
+            x3 = self.nodes[p3]
+            hk = max(np.linalg.norm(x2 - x1), np.linalg.norm(x3 - x1), np.linalg.norm(x3 - x2))
 
-            for i, (node, bc_type) in enumerate(zip(element, edge_bc_types)):
-                # Only add boundary conditions for edge nodes:
-                if node not in element_edge_nodes:
-                    continue
-                
-                # Ensure that the Dirichlet node's bc has not been applied yet
-                if bc_type == BCtype.Dir and not self.dirichlet_BC_mask[node]:
-                    self.apply_node_dirichlet_bc(node)
+            if hk > h:
+                h = hk
 
-                elif bc_type == BCtype.Neu:
-                    
-                    # No contribution if there is only one edge node in the element:
-                    if len(element_edge_nodes) == 1:
-                        continue
-                    
-                    a = self.nodes[element_edge_nodes[0]]
-                    b = self.nodes[element_edge_nodes[1]]
+        return h
 
-                    def integrand(p):
-                        phi = self.basis_functions[i](F_inv(p))
-                        g_n = self.g_N(p)
-                        return g_n*phi
-                    
-                    neumann_contribution = quadrature1D(integrand, a, b, Nq=self.quad_points)
-
-                    # Add contribution from integrating over the element outer edge:
-                    self.F_h[node] += neumann_contribution
-                    
-        # Remove redundant degrees of freedom from A_h and F_h:
-        F_mask = np.ones(len(self.F_h), dtype=bool)
-        F_mask[self.dirichlet_BC_basis_functions] = False
-        self.F_h = self.F_h[F_mask]
-
-        self.A_h = delete_from_csr(self.A_h, row_indices=self.dirichlet_BC_basis_functions, 
-                                             col_indices=self.dirichlet_BC_basis_functions)
-        self.applied_BC = True
-
-    def apply_big_number_dirichlet(self, eps=None):
-        """
-        Apply pure Dirichlet boundary conditions to A_h and F_h 
-        using the "Big Number"-approach.
-        """
-        # TODO: UPDATE
-        raise NotImplementedError("Need to update function for ElasticitySolver2D")
-
-        if self.A_h is None or self.F_h is None:
-            print("Cannot apply boundary conditions before A_h and F_h are constructed!")
-            return
-        if eps is None:
-            eps = self.eps
-
-        eps_inv = 1.0/eps        
-        for node in self.edge_nodes:
-            p = self.nodes[node]
-            class_BC = self.class_BC(p)
-
-            if class_BC == BCtype.Dir:
-                """
-                If node is a Dirichlet node
-                """
-                g_D = self.g_D(p)
-                self.A_h[node, node] = eps_inv
-                self.F_h[node] = g_D*eps_inv
+    def fem_solution(self, element: list = None, F_inv: callable = None, k: int = None):
+        # Assume one has solved for the coefficients self.u_h:
+        if F_inv is None:
+            if k is not None:
+                F_inv = lambda p: self.global_to_reference_transformation(p, k, J_inv=None)
+            else:
+                raise ValueError("Either the inverse coordinate transform F_inv or element index k must be given.")
         
-        self.applied_BC = True
+        if element is None and type(k) is int:
+            element = self.triang[k]
 
-    def solve_big_number_dirichlet(self):
-        # TODO: UPDATE
-        raise NotImplementedError("Need to update function for ElasticitySolver2D")
-        self.generate_A_h()
-        self.generate_F_h()
-        self.apply_big_number_dirichlet()
-        self.u_h = sp.linalg.spsolve(self.A_h, self.F_h)
-
-    def solve(self):
-        # TODO: UPDATE
-        raise NotImplementedError("Need to update function for ElasticitySolver2D")
-        self.generate_A_h()
-        self.generate_F_h()
-        self.apply_boundary_conditions()
-
-        reduced_u_h = sp.linalg.spsolve(self.A_h, self.F_h)
-        self.u_h = np.zeros(self.num_nodes)
-        self.u_h[~self.dirichlet_BC_mask] = reduced_u_h
-        self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
-
-    def solve_direct_dirichlet_CG(self, TOL=1e-5):
-        # TODO: UPDATE
-        raise NotImplementedError("Need to update function for ElasticitySolver2D")
-        self.generate_A_h()
-        self.generate_F_h()
-        self.apply_direct_dirichlet()
+        # Retrieve coefficients of basis function in each vector component:
+        u_xs = self.u_h[[element], 0].ravel()
+        u_ys = self.u_h[[element], 1].ravel()
         
-        reduced_u_h, exit_code = sp.linalg.cg(self.A_h, self.F_h, tol=TOL)
-        assert exit_code == 0 
-        self.u_h = np.zeros(self.num_nodes)
-        self.u_h[~self.dirichlet_BC_mask] = reduced_u_h
-        self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
+        phi_0 = lambda p: self.basis_functions[0](F_inv(p))
+        phi_1 = lambda p: self.basis_functions[1](F_inv(p))
+        phi_2 = lambda p: self.basis_functions[2](F_inv(p))
+        phi_funcs = [phi_0, phi_1, phi_2]
 
-    def error_est(self, u_ex, quad_points=None):
-        # TODO: UPDATE
-        raise NotImplementedError("Need to update function for ElasticitySolver2D")
+        def u_h_func(p):
+            x_comp = sum([u_xs[i]*phi_funcs[i](p) for i in (0, 1, 2)])
+            y_comp = sum([u_ys[i]*phi_funcs[i](p) for i in (0, 1, 2)])
+            return np.array([x_comp, y_comp])
+
+        return u_h_func
+
+    def display_single_element_error(self, k: int, u: callable, ax=None, show=False, quiver=False):
+        # assert callable(u)
+        element = self.triang[k]
+        p0, p1, p2 = self.nodes[element]
+
+        num = 50
+        r_s = np.linspace(0, 1.0, num)
+        delta_r = 1.0/num
+        
+        internal_nodes = []
+        for r in r_s:
+            s = 0.0
+            while s + r <= 1.0:
+                internal_nodes.append(p0 + r*(p1 - p0) + s*(p2 - p0))
+                s += delta_r
+
+        internal_nodes = np.array(internal_nodes)
+        u_h_func = self.fem_solution(k=k)
+        errors = np.array([la.norm(u(p) - u_h_func(p), ord=2)**2 for p in internal_nodes])
+        X, Y = internal_nodes[:, 0], internal_nodes[:, 1]
+
+        if ax is None:
+            fig = plt.figure(figsize=(14, 14))
+            fig.suptitle("Single Element Vector Field Plot")
+            ax = fig.add_subplot(111, projection='3d')
+            ax.set_xlabel("X")
+            ax.set_ylabel("Y", rotation=0)
+        elif quiver == True:
+            # Arrow locations:
+            vectors = np.array([u(p) for p in internal_nodes])
+            ax.scatter(X, Y)
+            U, V = vectors[:, 0], vectors[:, 1]
+        
+            Q = ax.quiver(X, Y, U, V)
+            ax.quiverkey(Q, X=0.3, Y=0.97, U=1, coordinates='figure',
+                         label='Quiver key, length = 1', labelpos='W')
+        
+        else:
+            ax.plot_trisurf(X, Y, errors, color='black')
+        
+        if show:
+            plt.subplots_adjust(left=0.08, bottom=0.08, right=0.97, top=0.95)
+            plt.show()
+
+    def display_L2_error(self, u_ex: callable):
+
+        fig, ax = plt.subplots(figsize=(12, 12), subplot_kw={'projection': '3d'})
+        for k, element in enumerate(self.triang):
+
+            self.display_single_element_error(k, u=u_ex, ax=ax, show=False)
+
+        plt.show()
+
+    def L2_norm_error(self, u_ex, quad_points=None):
+        # raise NotImplementedError("Need to update function for ElasticitySolver2D")
         assert isinstance(self.u_h, np.ndarray)
 
         if quad_points == None:
             quad_points = self.quad_points
 
-        E = 0
+        E = 0.0
 
         """ For each element in triangulation. """ 
         for k, element in enumerate(self.triang):
-
-            F_inv = lambda p: self.global_to_reference_transformation(p, k, J_inv=None)
-            p1, p2, p3 = element
-            x1 = self.nodes[p1]
-            x2 = self.nodes[p2]
-            x3 = self.nodes[p3]
-
-            u1 = self.u_h[p1]
-            u2 = self.u_h[p2]
-            u3 = self.u_h[p3]
-
             
-            phi1, phi2, phi3 = self.basis_functions
-            """ err = ( u_h - u_ex )**2 """
-            err = lambda x: ( u1*phi1(F_inv(x)) + u2*phi2(F_inv(x)) + u3*phi3(F_inv(x)) - u_ex(x) )**2
+            J_inv = la.inv(self.generate_jacobian(k))
+
+            F_inv = lambda p: self.global_to_reference_transformation(p, k, J_inv=J_inv)
+
+            u_h_func = self.fem_solution(element=element, F_inv=F_inv)
+
+            """ err = || u_h - u_ex ||₂**2 """
+            err = lambda p: la.norm(u_h_func(p) - u_ex(p), ord=2)**2
             
             """ Gauss quadrature approximation to contribution to square error from element k """
+            x1, x2, x3 = [self.nodes[node] for node in element]
             E += quadrature2D(err, x1, x2, x3, Nq=quad_points)
 
         return np.sqrt(E)
