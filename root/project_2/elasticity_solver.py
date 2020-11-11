@@ -7,6 +7,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.tri as mtri
 from matplotlib.animation import ArtistAnimation
+from mpl_toolkits.mplot3d import axes3d
 
 from itertools import product as iter_product
 
@@ -128,7 +129,7 @@ class Elasticity2DSolver(Triangular2DFEM):
 
             element_triang = self.triang[triangle_indices]
 
-        else:
+        elif elements is not None:
             element_triang = self.triang[elements]
         
         nodes_x = np.copy(self.nodes[:, 0])
@@ -234,7 +235,7 @@ class Elasticity2DSolver(Triangular2DFEM):
             vectors = np.array([u_p for u_p in u])
         else:
             # Use internal solution u_h:
-            vectors = np.array([u_p for u_p in self.u_h.reshape(self.num_nodes, 2)])
+            vectors = np.array([u_p for u_p in self.u_h])
 
         plt.rcParams.update({'font.size': 18})
 
@@ -901,7 +902,23 @@ class Elasticity2DSolver(Triangular2DFEM):
         self.u_h[~self.dirichlet_BC_mask] = reduced_u_h
         self.u_h[self.dirichlet_BC_mask] = self.dirichlet_BC_values
     
-    def fem_solution(self, element: list, F_inv: callable=None, k=None):
+    def find_h(self):
+        h = 0
+
+        for k, element in enumerate(self.triang):
+
+            p1, p2, p3 = element
+            x1 = self.nodes[p1]
+            x2 = self.nodes[p2]
+            x3 = self.nodes[p3]
+            hk = max(np.linalg.norm(x2 - x1), np.linalg.norm(x3 - x1), np.linalg.norm(x3 - x2))
+
+            if hk > h:
+                h = hk
+
+        return h
+
+    def fem_solution(self, element: list = None, F_inv: callable = None, k: int = None):
         # Assume one has solved for the coefficients self.u_h:
         # assert isinstance(self.u_h, np.ndarray)
         if F_inv is None:
@@ -909,12 +926,18 @@ class Elasticity2DSolver(Triangular2DFEM):
                 F_inv = lambda p: self.global_to_reference_transformation(p, k, J_inv=None)
             else:
                 raise ValueError("Either the inverse coordinate transform F_inv or element index k must be given.")
+        
+        if element is None and type(k) is int:
+            element = self.triang[k]
 
         # Retrieve coefficients of basis function in each vector component:
-        u_xs = self.u_h[[2*node     for node in element]]
-        u_ys = self.u_h[[2*node + 1 for node in element]]
+        u_xs = self.u_h[[element], 0].ravel()
+        u_ys = self.u_h[[element], 1].ravel()
         
-        phi_funcs = [lambda p: phi(F_inv(p)) for phi in self.basis_functions]
+        phi_0 = lambda p: self.basis_functions[0](F_inv(p))
+        phi_1 = lambda p: self.basis_functions[1](F_inv(p))
+        phi_2 = lambda p: self.basis_functions[2](F_inv(p))
+        phi_funcs = [phi_0, phi_1, phi_2]
 
         def u_h_func(p):
             x_comp = sum([u_xs[i]*phi_funcs[i](p) for i in (0, 1, 2)])
@@ -923,9 +946,63 @@ class Elasticity2DSolver(Triangular2DFEM):
 
         return u_h_func
 
+    def display_single_element_error(self, k: int, u: callable, ax=None, show=False, quiver=False):
+        # assert callable(u)
+        element = self.triang[k]
+        p0, p1, p2 = self.nodes[element]
+
+        num = 50
+        r_s = np.linspace(0, 1.0, num)
+        delta_r = 1.0/num
+        
+        internal_nodes = []
+        for r in r_s:
+            s = 0.0
+            while s + r <= 1.0:
+                internal_nodes.append(p0 + r*(p1 - p0) + s*(p2 - p0))
+                s += delta_r
+
+        internal_nodes = np.array(internal_nodes)
+        u_h_func = self.fem_solution(k=k)
+        errors = np.array([la.norm(u(p) - u_h_func(p), ord=2)**2 for p in internal_nodes])
+        X, Y = internal_nodes[:, 0], internal_nodes[:, 1]
+
+        # plt.rcParams.update({'font.size': 18})
+
+        if ax is None:
+            fig = plt.figure(figsize=(14, 14))
+            fig.suptitle("Single Element Vector Field Plot")
+            ax = fig.add_subplot(111, projection='3d')
+            ax.set_xlabel("X")
+            ax.set_ylabel("Y", rotation=0)
+        elif quiver == True:
+            # Arrow locations:
+            vectors = np.array([u(p) for p in internal_nodes])
+            ax.scatter(X, Y)
+            U, V = vectors[:, 0], vectors[:, 1]
+        
+            Q = ax.quiver(X, Y, U, V)
+            ax.quiverkey(Q, X=0.3, Y=0.97, U=1, coordinates='figure',
+                         label='Quiver key, length = 1', labelpos='W')
+        
+        else:
+            ax.plot_trisurf(X, Y, errors, color='black')
+        
+        if show:
+            plt.subplots_adjust(left=0.08, bottom=0.08, right=0.97, top=0.95)
+            plt.show()
+
+    def display_L2_error(self, u_ex: callable):
+
+        fig, ax = plt.subplots(figsize=(12, 12), subplot_kw={'projection': '3d'})
+
+        for k, element in enumerate(self.triang):
+
+            self.display_single_element_error(k, u=u_ex, ax=ax, show=False)
+
+        plt.show()
 
     def L2_norm_error(self, u_ex, quad_points=None):
-        # TODO: UPDATE
         # raise NotImplementedError("Need to update function for ElasticitySolver2D")
         assert isinstance(self.u_h, np.ndarray)
 
@@ -943,22 +1020,8 @@ class Elasticity2DSolver(Triangular2DFEM):
 
             u_h_func = self.fem_solution(element, F_inv=F_inv)
 
-            """
-            p1, p2, p3 = element
-            x1 = self.nodes[p1]
-            x2 = self.nodes[p2]
-            x3 = self.nodes[p3]
-
-            u1 = self.u_h[p1]
-            u2 = self.u_h[p2]
-            u3 = self.u_h[p3]
-
-            
-            phi1, phi2, phi3 = self.basis_functions
-            """
-
-            """ err = ( u_h - u_ex )**2 """
-            err = lambda p: ( u_h_func(p) - u_ex(p) )**2
+            """ err = || u_h - u_ex ||₂**2 """
+            err = lambda p: la.norm(u_h_func(p) - u_ex(p), ord=2)**2
             
             """ Gauss quadrature approximation to contribution to square error from element k """
             x1, x2, x3 = [self.nodes[node] for node in element]
