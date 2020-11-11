@@ -15,8 +15,8 @@ def main():
     # test_markov(N=10, area="plate")
     # test_animate_mesh_stress(N=10)
     # save_material_vibration_modes(N=6, k_min=3, k_max=4)
-    test_full_solver(N=12)
-    # test_mosaic(N=10, k=5)
+    # test_full_solver(N=12)
+    test_mosaic(N=10, k=5)
 
     pass
 

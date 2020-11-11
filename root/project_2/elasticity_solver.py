@@ -654,13 +654,13 @@ class Elasticity2DSolver(Triangular2DFEM):
 
         displacement_vec = self.retrieve_vibration_eigenvector(k)
 
-        fig, axs = plt.subplots(dims, figsize=figsize)
+        fig, axs = plt.subplots(*dims, figsize=figsize)
 
         K = dims[0] * dims[1]
 
         for i, phi in enumerate(np.linspace(0, np.pi, K)):
             self.display_mesh_stress(displacement=alpha*np.cos(phi)*displacement_vec,
-                    norm=None, show=False, ax=axs[i])
+                    norm=None, show=False, ax=axs.flatten()[i])
 
         if show:
             plt.show()
