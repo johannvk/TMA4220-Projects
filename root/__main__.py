@@ -16,7 +16,7 @@ def main():
     # test_animate_mesh_stress(N=10)
     # save_material_vibration_modes(N=6, k_min=3, k_max=4)
     # test_full_solver(N=12)
-    test_mosaic(N=10, k=5)
+    test_mosaic(N=10, k=5, dims=(3,3), alpha=0.5, savename="mosaictest", dpi=200)
 
     pass
 
