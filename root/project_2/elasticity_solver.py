@@ -819,8 +819,8 @@ class Elasticity2DSolver(Triangular2DFEM):
         # Subtract from the source vector the columns corresponding to 
         # both the basis function components at 'node', times 
         # their respective Dirichlet BC-value: 
-        self.F_h -= self.A_h[:, i_0]*u_D_x
-        self.F_h -= self.A_h[:, i_1]*u_D_y
+        self.F_h += self.A_h[:, i_0]*u_D_x
+        self.F_h += self.A_h[:, i_1]*u_D_y
 
     def apply_direct_dirichlet(self):
         # Dirichlet Boundary 
