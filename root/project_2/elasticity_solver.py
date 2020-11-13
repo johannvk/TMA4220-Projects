@@ -714,16 +714,21 @@ class Elasticity2DSolver(Triangular2DFEM):
 
         fig, axs = plt.subplots(1,2)
 
-        vibs = self.vibration_frequencies
+        if np.any(np.isclose(self.vibration_frequencies, 0, atol=1e-12)):
+            eps = 1.1*np.abs(np.amin(self.vibration_frequencies))
+        else:
+            eps = 0
+    
+        vibs = np.sqrt(self.vibration_frequencies + eps) / (2*np.pi)
         axs[0].plot(np.arange(vibs.shape[0]), vibs, 'k.')
-        axs[0].set_title("$\omega_k$")
+        axs[0].set_title("All frequencies, $\omega_k$")
 
-        vibs = self.vibration_frequencies[3:]
+        vibs = np.sqrt(self.vibration_frequencies[3:]) / (2*np.pi)
         n_max = np.max(vibs / vibs[0])
-        axs[1].plot(np.arange(vibs.shape[0]), vibs / vibs[0], 'k.' )
+        axs[1].plot(np.arange(3, vibs.shape[0] + 3), vibs / vibs[0], 'k.' )
         for i in range(1, int(n_max) + 1):
             axs[1].axhline(y=i, color='black', lw=0.4)
-        axs[1].set_title("$\omega_k / \omega_0$")
+        axs[1].set_title("Non-zero frequencies, $\omega_k / \omega_f$")
 
         if savename is not None:
             fig.savefig(f"root/project_2/figures/{savename}.png")
