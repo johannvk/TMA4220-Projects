@@ -109,7 +109,7 @@ def save_material_vibration_mosaics(N=60, ks=None, area="plate", dims=(3,3), fig
     alu_sol = aluminium_solver(N=N, area=area, max_modes=max(ks)+1)    
     for k in ks:
         alu_file = alu_filename.format(area, N, k)
-        alu_title = f"Vibration mode {k} for Stainless Steel {area}, {len(alu_sol.triang)} Elements"
+        alu_title = f"Vibration mode {k} for Aluminium {area}, {len(alu_sol.triang)} Elements"
         alu_sol.vibration_stress_mosaic(k, dims=dims, figsize=figsize, dpi=dpi, show=False,
                                           savename=alu_file, title=alu_title)
         print(f"Aluminium mode {k} complete...")
@@ -118,7 +118,7 @@ def save_material_vibration_mosaics(N=60, ks=None, area="plate", dims=(3,3), fig
     timber_sol = timber_solver(N=N, area=area, max_modes=max(ks)+1)    
     for k in ks:
         timber_file = timber_filename.format(area, N, k)
-        timber_title = f"Vibration mode {k} for Stainless Steel {area}, {len(timber_sol.triang)} Elements"
+        timber_title = f"Vibration mode {k} for Timber {area}, {len(timber_sol.triang)} Elements"
         timber_sol.vibration_stress_mosaic(k, dims=dims, figsize=figsize, dpi=dpi, show=False,
                                           savename=timber_file, title=timber_title)
         print(f"Timber mode {k} complete...")
