@@ -130,3 +130,4 @@ dmypy.json
 # .vscode/launch.json  # Makes it easier for all who use VScode to start the project correctly. 
 
 *.mp4
+*.png
