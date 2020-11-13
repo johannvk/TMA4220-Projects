@@ -63,10 +63,10 @@ def L2_convergence(area="plate", show=True):
 
     plt.figure()
     plt.title("Relative error, Hom. Dirichlet BC's")
-    plt.loglog(hs, errors_rel, 'k-', lw=2.0, label=r"$||u - u_h||_{L_2(\Omega)} / ||u||_{L_2(\Omega)}$")
+    plt.loglog(hs, errors_rel, 'k-', lw=2.0, label=r"$||u - u_h||_{L_2(\Omega)} \, / \, ||u||_{L_2(\Omega)}$")
     plt.text(hs[2], 0.75*errors_rel[2], fr"Slope $\approx$ {betaD:.2f}")
     plt.xlabel("$h$")
-    plt.ylabel(r"$||u - u_h||_{L_2(\Omega)} / ||u||_{L_2(\Omega)}$")
+    plt.ylabel(r"$||u - u_h||_{L_2(\Omega)} \, / \, ||u||_{L_2(\Omega)}$")
 
     ax1 = plt.gca()    
     start_y, end_y = ax1.get_ylim()
