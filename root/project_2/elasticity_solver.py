@@ -560,7 +560,7 @@ class Elasticity2DSolver(Triangular2DFEM):
         N_frames = playtime * fps
         ts = np.linspace(0, 2*np.pi, N_frames)
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(16, 16))
         if title is None:
             fig.suptitle(f"Eigen vibration mode {k}", fontsize=18)
         else:
