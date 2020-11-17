@@ -1,7 +1,8 @@
 from .project_1.tasks import run_tasks as run_tasks_1
 from .project_1.tests import test_main
 
-from .project_2.tasks import save_material_vibration_modes, save_material_vibration_mosaics
+from .project_2.tasks import save_material_vibration_modes, save_material_vibration_mosaics, \
+                             material_vibration_frequencies
 from .project_2.convergence_plots import L2_convergence
 from .project_2.tests import test_elasticity_solver, test_animation, test_animate_mesh_stress, \
                              test_markov, test_full_solver, test_mosaic, test_show_frequencies
@@ -19,10 +20,11 @@ def main():
     # save_material_vibration_modes(N=6, k_min=3, k_max=4)
     # test_full_solver(N=12)
     # test_mosaic(N=10, k=5, dims=(3,3), alpha=0.5, savename="mosaictest", dpi=200)
-    test_show_frequencies(N=20, num=30, area="plate")
+    # test_show_frequencies(N=20, num=30, area="plate")
     # L2_convergence()
     # test_mosaic(N=10, k=5, dims=(2,3))
     # save_material_vibration_mosaics(N=10, ks=[9], area="plate", figsize=(16,12), dpi=200, dims=(2,3))
+    material_vibration_frequencies(N=20, k_max=20, area="plate")
 
     pass
 

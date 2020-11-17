@@ -705,16 +705,18 @@ class Elasticity2DSolver(Triangular2DFEM):
 
         return
 
-    def show_frequencies(self, show=None, savename=None, title=None):
+    def show_frequencies(self, show=None, savename=None, title=None, figsize=None):
         if self.vibration_frequencies is None:
             raise Exception("Need to calculate vibration frequencies first.")
 
         if title is None:
             title = "Vibration-frequencies"
 
-        fig, axs = plt.subplots(1,2)
+        fig, axs = plt.subplots(1,2, figsize=figsize)
 
-        if np.any(np.isclose(self.vibration_frequencies, 0, atol=1e-12)):
+        fig.suptitle(title)
+
+        if np.any(np.isclose(self.vibration_frequencies, 0, atol=1e-10*np.amax(self.vibration_frequencies))):
             eps = 1.1*np.abs(np.amin(self.vibration_frequencies))
         else:
             eps = 0
