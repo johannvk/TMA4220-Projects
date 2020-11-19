@@ -706,16 +706,18 @@ class Elasticity2DSolver(Triangular2DFEM):
         return
 
     def show_frequencies(self, show=None, savename=None, title=None, figsize=None):
-        # Set a bigger font size for text:
-        plt.rcParams.update({'font.size': 20})
 
         if self.vibration_frequencies is None:
             raise Exception("Need to calculate vibration frequencies first.")
 
         if title is None:
             title = "Vibration-frequencies"
+        
+        plt.rcParams.update({'font.size': 14})
 
         fig, axs = plt.subplots(1,2, figsize=figsize)
+
+        plt.subplots_adjust(wspace=0.3, left=0.12, right=0.99)
 
         fig.suptitle(title)
 

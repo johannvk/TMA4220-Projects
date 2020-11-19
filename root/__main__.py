@@ -20,7 +20,7 @@ def main():
     # save_material_vibration_modes(N=6, k_min=3, k_max=4)
     # test_full_solver(N=12)
     # test_mosaic(N=10, k=5, dims=(3,3), alpha=0.5, savename="mosaictest", dpi=200)
-    # test_show_frequencies(N=20, num=30, area="plate")
+    # test_show_frequencies(N=6, num=12, area="plate")
     # L2_convergence()
     # test_mosaic(N=10, k=5, dims=(2,3))
     # save_material_vibration_mosaics(N=10, ks=[9], area="plate", figsize=(16,12), dpi=200, dims=(2,3))
