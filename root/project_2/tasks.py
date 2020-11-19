@@ -124,20 +124,20 @@ def save_material_vibration_mosaics(N=60, ks=None, area="plate", dims=(3,3), fig
         print(f"Timber mode {k} complete...")
     del(timber_sol)
 
-def material_vibration_frequencies(N=20, k_max=10, area="plate", figsize=None):
+def material_vibration_frequencies(N=20, k_max=10, area="plate", figsize=(12, 10), show=False):
 
-    steel_filename = f"/vibrations/steel_vibrations_N_{N}"
-    alu_filename = f"/vibrations/alu_vibrations_N_{N}"
-    timber_filename = f"/vibrations/timber_vibrations_N_{N}"
+    steel_filename = f"vibrations/steel_vibrations_N_{N}"
+    alu_filename = f"vibrations/alu_vibrations_N_{N}"
+    timber_filename = f"vibrations/timber_vibrations_N_{N}"
 
     steel_sol = steel_solver(N=N, area=area, max_modes=k_max+1)
-    steel_sol.show_frequencies(show=False, title="Steel free vibration frequencies", figsize=figsize, savename=steel_filename)
+    steel_sol.show_frequencies(show=show, title="Steel free vibration frequencies", figsize=figsize, savename=steel_filename)
 
     alu_sol = aluminium_solver(N=N, area=area, max_modes=k_max+1)
-    alu_sol.show_frequencies(show=False, title="Aluminium free vibration frequencies", figsize=figsize, savename=alu_filename)
+    alu_sol.show_frequencies(show=show, title="Aluminium free vibration frequencies", figsize=figsize, savename=alu_filename)
 
     timber_sol = timber_solver(N=N, area=area, max_modes=k_max+1)
-    timber_sol.show_frequencies(show=False, title="Timber free vibration frequencies", figsize=figsize, savename=timber_filename)
+    timber_sol.show_frequencies(show=show, title="Timber free vibration frequencies", figsize=figsize, savename=timber_filename)
 
     return
 
