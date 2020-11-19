@@ -713,11 +713,11 @@ class Elasticity2DSolver(Triangular2DFEM):
         if title is None:
             title = "Vibration-frequencies"
         
-        plt.rcParams.update({'font.size': 14})
+        plt.rcParams.update({'font.size': 24})
 
         fig, axs = plt.subplots(1,2, figsize=figsize)
 
-        plt.subplots_adjust(wspace=0.3, left=0.12, right=0.99)
+        plt.subplots_adjust(wspace=0.21, left=0.15, right=0.95)
 
         fig.suptitle(title)
 
@@ -727,20 +727,23 @@ class Elasticity2DSolver(Triangular2DFEM):
             eps = 0
     
         vibs = np.sqrt(self.vibration_frequencies + eps) / (2*np.pi)
-        axs[0].plot(np.arange(vibs.shape[0]), vibs, 'k.')
+        axs[0].plot(np.arange(vibs.shape[0]), vibs, 'k.', markersize=15)
         axs[0].set_title("All frequencies, $f_k$")
         axs[0].set_ylabel("[Hz]")
+        axs[0].get_yaxis().labelpad = 13
+        axs[0].set_xlabel(r"$k$")
 
         non_zero_vibs = np.sqrt(self.vibration_frequencies[3:]) / (2*np.pi)
 
         fund_freq = non_zero_vibs[0]  # Fundamental frequency. First non-zero frequency.
         n_max = np.max(non_zero_vibs / fund_freq)
 
-        axs[1].plot(np.arange(3, non_zero_vibs.shape[0] + 3), non_zero_vibs / fund_freq, 'k.' )
+        axs[1].plot(np.arange(3, non_zero_vibs.shape[0] + 3), non_zero_vibs / fund_freq, 'k.', markersize=15)
         for i in range(1, int(n_max) + 1):
             axs[1].axhline(y=i, color='black', lw=0.4)
 
         axs[1].set_title("Non-zero frequencies, $f_k \, / \, f_3$")
+        axs[1].set_xlabel(r"$k$")
 
         if show is None:
             if savename is None:
