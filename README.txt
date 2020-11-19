@@ -11,3 +11,9 @@ boundary conditions, and also display the solutions.
 
 Lastly, one can run the file "convergence_plots.py", which will generate the 
 convergence plots for both a pure Dirichlet BC-problem, and a mixed BC-problem.
+
+Tested on:
+    python 3.7.0
+    numpy 1.18.2
+    scipy 1.1.0
+    matplotlib 3.1.1
