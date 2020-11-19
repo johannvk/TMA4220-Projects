@@ -804,7 +804,7 @@ class Elasticity2DSolver(Triangular2DFEM):
         displacement_vec = self.retrieve_vibration_eigenvector(k)
         return self.display_mesh(displacement=displacement_vec)
 
-        def vibration_stress_mosaic(self, k, alpha=1, dims=(3,3), figsize=(10,12), dpi=None, show=None,
+    def vibration_stress_mosaic(self, k, alpha=1, dims=(3,3), figsize=(10,12), dpi=None, show=None,
                                 savename=None, title=None):
     
         if k > self.num_eigenpairs - 1:
@@ -815,18 +815,19 @@ class Elasticity2DSolver(Triangular2DFEM):
         max_stretch = self.find_max_stress(displacement=displacement_vec*alpha)
 
         # Set a bigger font size for text:
-        plt.rcParams.update({'font.size': 20})
+        fs = 36
+        plt.rcParams.update({'font.size': fs})
 
         norm = mpl.colors.Normalize(vmin=-max_stretch, vmax=max_stretch)
 
         fig, axs = plt.subplots(dims[0], dims[1], figsize=figsize, sharex=True, sharey=True)
         
         if title is None:
-            title = f"Progression of vibration-mode {k}"
+            plt.subplots_adjust(top=0.95)
 
         fig.suptitle(title)
 
-        plt.subplots_adjust(left=0.10, bottom=0.08, wspace=0, hspace=0, right=0.87)
+        plt.subplots_adjust(left=0.11, bottom=0.11, wspace=0, hspace=0, right=0.89)
         K = dims[0] * dims[1]
 
         for i, phi in enumerate(np.linspace(0, np.pi, K)):
@@ -835,13 +836,14 @@ class Elasticity2DSolver(Triangular2DFEM):
 
         cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=None), ax=axs[:,dims[1]-1])
         cbar.ax.get_yaxis().labelpad = 30
-        cbar.set_label(r"Mean Total Stress $\sigma$ [Pa]", rotation=270, fontsize=24)
+        cbar.set_label(r"Mean Total Stress $\sigma$ [Pa]", rotation=270, fontsize=fs)
 
         labax = fig.add_subplot(111, frameon=False)
         # hide tick and tick label of the big axis
         labax.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
         labax.set_xlabel("$x \, [m]$")
         labax.set_ylabel("$y \, [m]$")
+        labax.get_yaxis().labelpad = 20
 
         if savename is not None:
             fig.savefig(f"root/project_2/figures/{savename}.png", dpi=dpi)

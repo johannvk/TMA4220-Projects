@@ -23,8 +23,8 @@ def main():
     # test_show_frequencies(N=6, num=12, area="plate")
     # L2_convergence()
     # test_mosaic(N=10, k=5, dims=(2,3))
-    # save_material_vibration_mosaics(N=10, ks=[9], area="plate", figsize=(16,12), dpi=200, dims=(2,3))
-    material_vibration_frequencies(N=20, k_max=20, area="plate", show=False)
+    save_material_vibration_mosaics(N=20, ks=[3,6,7,9], area="plate", figsize=(16,12), dpi=200, dims=(2,3))
+    # material_vibration_frequencies(N=20, k_max=20, area="plate", show=False)
     
     pass
 
