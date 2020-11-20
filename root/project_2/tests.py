@@ -37,31 +37,6 @@ def test_elasticity_solver(N=5, area="plate"):
     pass
 
 
-def test_animation(N=20, area="plate", mode=5):
-    model_dict = {"N": N, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
-                  "class_BC": 12.0, "E": 10.0, "nu": 0.22, "rho": 1.0, "area": area}    
-    solver = Elasticity2DSolver.from_dict(model_dict)
-    solver.solve_vibration_modes(num=mode+1)
-    solver.animate_vibration_mode(mode, alpha=1, l=5, savename=None)
-    print("What?!")
-    return
-
-
-def test_animate_mesh_stress(N=6, area="plate"):
-    from itertools import product as iter_product
-
-    model_dict = {"N": N, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
-                  "class_BC": 12.0, "E": 12.0, "nu": 0.22, "rho": 1.0, "area": area}
-    solver = Elasticity2DSolver.from_dict(model_dict)
-    solver.solve_vibration_modes(num=N)
-
-    k = N//2
-
-    solver.animate_vibration_mode_stress(k=k, alpha=0.05, l=3)
-
-    return
-
-
 def test_markov(N=10, area="plate"):
 
     from time import time
@@ -111,37 +86,12 @@ def test_full_solver(N=10, area="plate"):
     
     solver = Elasticity2DSolver.from_dict(model_dict)
 
-    # Display analytical solution:
-    # solver.display_vector_field(u=u, title="Analytical solution")
-
     # Lock the left-most edge:
     solver.solve_direct_dirichlet()
-
-    """
-    # Internal Model-Hacking:
-    solver.generate_M_h()
-    solver.M_h = delete_from_csr(solver.M_h, row_indices=solver.dirichlet_BC_basis_functions, 
-                                             col_indices=solver.dirichlet_BC_basis_functions)
-    """
 
     solver.solve_vibration_modes(num=20)
     solver.animate_vibration_mode_stress(k=4, alpha=0.5, l=1, show=True, savename=None, fps=30)
 
-    # solver.display_vector_field(u=solver.u_h, title="FEM solution")
-    # solver.display_mesh_stress(displacement=solver.u_h, show=True)
-
-def test_mosaic(N=10, k=5, area="plate", figsize=(10,10), dims=(3,3), alpha=1,
-                savename=None, show=None, dpi=None):
-
-    model_dict = {"N": N, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
-                  "class_BC": 12.0, "E": 10.0, "nu": 0.22, "rho": 1.0, "area": area}    
-    solver = Elasticity2DSolver.from_dict(model_dict)
-    solver.solve_vibration_modes(num=k+1)
-
-    solver.vibration_stress_mosaic(k=k, alpha=alpha, dims=dims, figsize=figsize,
-                                    show=show, savename=savename, dpi=dpi)
-
-    return
 
 def test_show_frequencies(N=10, num=20, area="plate", savename=None, show=None):
 
@@ -152,4 +102,12 @@ def test_show_frequencies(N=10, num=20, area="plate", savename=None, show=None):
 
     solver.show_frequencies()
     return
+
+
+def test_main():
+    test_elasticity_solver(N=25, area="plate")
+
+    test_full_solver(N=12)          # Leftmost edge locked in place. 
+
+    test_show_frequencies(N=6, num=12, area="plate")
 

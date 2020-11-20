@@ -1,16 +1,18 @@
 README - TMA4220 Projects
-# TODO: UPDATE!
-The source code for the Finite Element solver is located in "fem_2d_solver.py".
+
+Code is run as a module by calling
+>>> python -m root
+in the directory where the `root` folder lies. This calls the "main()" method in 
+"__main__.py".
+
+The source code for the 2D Poisson solver is located in "root/project_1/fem_2d_solver.py".
 The solver is implemented in the class "Poisson2DSolver()", which stores the requisite
 parameters and has the required functionality for constructing things such as stiffness
 matrixes and applying boundary conditions.
 
-In order to solve the problems from the project, one runs the file "tasks.py". 
-There we have instantiated the solver with the different source functions and 
-boundary conditions, and also display the solutions. 
-
-Lastly, one can run the file "convergence_plots.py", which will generate the 
-convergence plots for both a pure Dirichlet BC-problem, and a mixed BC-problem.
+The source code for the 2D Elasticity solver is located in "root/project_1/elasticity_solver.py".
+Here all the functionality for solving the 2D elasticy equation with dirichlet conditions is implemented,
+along with the functionality for finding eigen vibration modes and frequencies over a plate or circular domain.
 
 Tested on:
     python 3.7.0

@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 
 from .elasticity_solver import Elasticity2DSolver
 
+from .convergence_plots import L2_convergence
 
 def steel_solver(N=10, area="plate", max_modes=20, savename=None):
     # Stainless Steel 18-8: 2x2 meter slab. 1 cm thick.
@@ -50,10 +51,9 @@ def save_material_vibration_modes(N=40, k_min=0, k_max=10, area="plate", fps=30)
 
     start = time()
 
-    steel_filename = "/bulk/steel_{}_N_{}_mode_{}"
-    alu_filename = "/bulk/aluminium_{}_N_{}_mode_{}"
-    timber_filename = "/bulk/timber_{}_N_{}_mode_{}"
-
+    steel_filename = "bulk/steel_{}_N_{}_mode_{}"
+    alu_filename = "bulk/aluminium_{}_N_{}_mode_{}"
+    timber_filename = "bulk/timber_{}_N_{}_mode_{}"
 
     l = 1
     alpha = 1
@@ -90,12 +90,12 @@ def save_material_vibration_modes(N=40, k_min=0, k_max=10, area="plate", fps=30)
 
     return
 
+
 def save_material_vibration_mosaics(N=60, ks=None, area="plate", dims=(3,3), figsize=None, dpi=None):
 
-    steel_filename = "/mosaics/steel_mos_{}_N_{}_mode_{}"
-    alu_filename = "/mosaics/aluminium_mos_{}_N_{}_mode_{}"
-    timber_filename = "/mosaics/timber_mos_{}_N_{}_mode_{}"
-
+    steel_filename = "mosaics/steel_mos_{}_N_{}_mode_{}"
+    alu_filename = "mosaics/aluminium_mos_{}_N_{}_mode_{}"
+    timber_filename = "mosaics/timber_mos_{}_N_{}_mode_{}"
 
     steel_sol = steel_solver(N=N, area=area, max_modes=max(ks)+1)    
     for k in ks:
@@ -127,6 +127,7 @@ def save_material_vibration_mosaics(N=60, ks=None, area="plate", dims=(3,3), fig
         print(f"Timber mode {k} complete...")
     del(timber_sol)
 
+
 def material_vibration_frequencies(N=20, k_max=10, area="plate", figsize=(12, 10), show=False):
 
     steel_filename = f"vibrations/steel_vibrations_N_{N}"
@@ -144,3 +145,53 @@ def material_vibration_frequencies(N=20, k_max=10, area="plate", figsize=(12, 10
 
     return
 
+
+def meshgrid_animation(N=20, area="plate", mode=5):
+    model_dict = {"N": N, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
+                  "class_BC": 12.0, "E": 10.0, "nu": 0.22, "rho": 1.0, "area": area}    
+    solver = Elasticity2DSolver.from_dict(model_dict)
+    solver.solve_vibration_modes(num=mode+1)
+    solver.animate_vibration_mode(mode, alpha=1, l=5, savename=None)
+    return
+
+
+def animate_mesh_stress(N=6, area="plate"):
+    from itertools import product as iter_product
+
+    model_dict = {"N": N, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
+                  "class_BC": 12.0, "E": 12.0, "nu": 0.22, "rho": 1.0, "area": area}
+    solver = Elasticity2DSolver.from_dict(model_dict)
+    solver.solve_vibration_modes(num=N)
+
+    k = N//2
+
+    solver.animate_vibration_mode_stress(k=k, alpha=0.05, l=3)
+
+    return
+
+
+def display_mosaic(N=10, k=5, area="plate", figsize=(16,12), dims=(3,3), alpha=1,
+                savename=None, show=None, dpi=None):
+
+    model_dict = {"N": N, "f": lambda p: 0.0, "g_D": lambda _: True, "g_N": lambda _: False,
+                  "class_BC": 12.0, "E": 10.0, "nu": 0.22, "rho": 1.0, "area": area}    
+    solver = Elasticity2DSolver.from_dict(model_dict)
+    solver.solve_vibration_modes(num=k+1)
+
+    solver.vibration_stress_mosaic(k=k, alpha=alpha, dims=dims, figsize=figsize,
+                                    show=show, savename=savename, dpi=dpi)
+
+    return
+
+
+def run_tasks():
+    ###### Display figures: ##########
+    meshgrid_animation()
+    animate_mesh_stress()
+    display_mosaic()
+    L2_convergence()
+    material_vibration_frequencies(N=20, k_max=20, area="plate", show=True)
+
+    ###### Save animations and figures: Requires correct folder structure. ###########
+    # save_material_vibration_modes(N=10)
+    # save_material_vibration_mosaics(N=20, ks=[3,6,7,9], area="plate", figsize=(16,12), dpi=200, dims=(2,3))
