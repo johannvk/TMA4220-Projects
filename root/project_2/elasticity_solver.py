@@ -630,6 +630,11 @@ class Elasticity2DSolver(Triangular2DFEM):
             plot = plt.triplot(nodes_x, nodes_y, triangles=element_triang)
 
         if show:
+            plt.rcParams.update({"font.size": 20})
+            plt.title(f"{len(self.triang)} Element Triangulation")
+            axis = plt.gca()
+            axis.set_xlabel("x", fontsize=20)
+            axis.set_ylabel("y", fontsize=20)
 
             x_min, x_max = np.min(nodes_x), np.max(nodes_x)
             y_min, y_max = np.min(nodes_y), np.max(nodes_y)
@@ -641,7 +646,8 @@ class Elasticity2DSolver(Triangular2DFEM):
             plt.ylim(y_min - margin*scale_y, y_max + margin*scale_y)
 
             plt.show()
-
+            return 
+            
         else:
             return plot
 
